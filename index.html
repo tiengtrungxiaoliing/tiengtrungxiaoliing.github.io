@@ -246,6 +246,10 @@ select.inline.sm{padding:5px 8px;font-size:13px}
 .fb-form textarea:focus{outline:none;border-color:var(--olive)}
 .fb-form label{font-weight:700}
 .anon{flex-direction:row!important;align-items:center;font-weight:500!important}
+.mins7{display:flex;gap:8px;align-items:flex-end;height:100px}
+.mins7 div{flex:1;text-align:center;font-size:12px}
+.mins7 i{display:block;background:var(--olive-l);border-radius:6px 6px 0 0;margin-bottom:4px;min-height:3px}
+#today-bar{margin-top:8px}
 .hz-line{font-family:'LXGW WenKai','KaiTi',serif;font-size:18px}
 </style>
 </head>
@@ -490,7 +494,8 @@ const $ = s => document.querySelector(s);
 const view = () => $('#view');
 const S = { page: 'home', mode: 'flash', quiz: null, flipped: false, queue: [], level: 'HSK1', lesson: 1 };
 let auth, db, me = null, profile = null, content = null, srs = {}, stats = {}, board = [], isTeacher = false;
-const today = () => new Date().toISOString().slice(0, 10);
+const dayStr = d => d.toLocaleDateString('sv-SE');
+const today = () => dayStr(new Date());
 const month = () => today().slice(0, 7);
 
 function toast(t) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), 2600); }
@@ -504,16 +509,48 @@ const initials = n => String(n || '?').trim().split(/\s+/).map(x => x[0]).slice(
 const myLesson = () => isTeacher ? S.lesson : (profile?.lesson || 1);
 const myLevel = () => isTeacher ? S.level : (profile?.level || 'HSK1');
 const learnedVocab = () => (content?.vocab || []).filter(v => v.ls <= myLesson() || (v.ls === EXT && myLesson() >= 15));
-const visibleLs = ls => ls <= myLesson() || (ls === EXT && myLesson() >= 15);
+
 
 /* ====== Lưu dữ liệu (gom lại để tiết kiệm lượt ghi) ====== */
 let saveTimer = null, pts = 0;
-function addPoints(n) { pts += n; touchStreak(); scheduleSave(); }
-function touchStreak() {
-  const t = today(); if (stats.lastDay === t) return;
-  const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-  stats.streak = stats.lastDay === y ? (stats.streak || 0) + 1 : 1; stats.lastDay = t;
+function addPoints(n) { pts += n; scheduleSave(); }
+/* ====== Chuỗi ngày học: đủ 10 phút thao tác = 1 ngày, mỗi tuần được giữ chuỗi 1 lần ====== */
+const GOAL = 600, IDLE = 120000;
+function weekId(ds) { const d = new Date(ds + 'T00:00:00'); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return dayStr(d); }
+function gapFreezes(st, until) {
+  const used = [], d = new Date(st.lastDay + 'T00:00:00'); d.setDate(d.getDate() + 1);
+  while (dayStr(d) < until) { const w = weekId(dayStr(d)); if ((st.freezes || []).includes(w) || used.includes(w)) return null; used.push(w); d.setDate(d.getDate() + 1); }
+  return used;
 }
+function currentStreak(st) {
+  if (!st || !st.lastDay) return 0; const t = today(); if (st.lastDay >= t) return st.streak || 0;
+  return gapFreezes(st, t) ? st.streak || 0 : 0;
+}
+function completeDay(t) {
+  if (stats.lastDay === t) return;
+  const used = stats.lastDay ? gapFreezes(stats, t) : null;
+  if (used) { stats.streak = (stats.streak || 0) + 1; stats.freezes = [...(stats.freezes || []), ...used].slice(-12); if (used.length) toast('Bạn đã dùng lượt giữ chuỗi của tuần'); }
+  else stats.streak = 1;
+  stats.lastDay = t; scheduleSave();
+}
+const todaySec = () => (stats.mins || {})[today()] || 0;
+const freezeLeft = () => (stats.freezes || []).includes(weekId(today())) ? 0 : 1;
+let lastAct = Date.now();
+['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(e => addEventListener(e, () => lastAct = Date.now(), { passive: true }));
+function tick() {
+  if (!me || isTeacher || !profile?.approved || document.visibilityState !== 'visible' || Date.now() - lastAct > IDLE) return;
+  const t = today(); stats.mins = stats.mins || {}; const before = stats.mins[t] || 0; stats.mins[t] = before + 15;
+  if (before < GOAL && stats.mins[t] >= GOAL) { completeDay(t); toast(`Đủ 10 phút hôm nay! Chuỗi ngày học: ${stats.streak} ngày`); }
+  if (Math.floor(stats.mins[t] / 60) !== Math.floor(before / 60)) {
+    Object.keys(stats.mins).sort().slice(0, -30).forEach(k => delete stats.mins[k]); scheduleSave(); updateTodayBar();
+  }
+}
+setInterval(tick, 15000);
+function todayBar() {
+  const m = Math.min(10, Math.floor(todaySec() / 60));
+  return `<div id="today-bar"><div class="row"><span class="grow muted">Hôm nay: <b>${m}/10 phút</b>${todaySec() >= GOAL ? ' · đã tính 1 ngày học' : ''}</span><span class="muted">Giữ chuỗi tuần này: ${freezeLeft()}</span></div><div class="bar"><i style="width:${m * 10}%"></i></div></div>`;
+}
+function updateTodayBar() { const el = document.getElementById('today-bar'); if (el) el.outerHTML = todayBar(); }
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(saveAll, 2500); }
 async function saveAll() {
   if (!me || isTeacher) return;
@@ -607,13 +644,22 @@ function render() {
   $('#bnav').innerHTML = items.filter(x => x[0] !== 'sep').map(([k, l, i]) => `<button class="${S.page === k ? 'on' : ''}" onclick="go('${k}')">${ic(i)}<span>${l.replace('Tiến độ của tôi', 'Tiến độ').replace('Bảng xếp hạng', 'Xếp hạng').replace('Luyện theo bài', 'Luyện bài').replace('Cập nhật nội dung', 'Nội dung')}</span></button>`).join('');
   $('#mascot').innerHTML = HILLS + `<div class="tip"><b>Mẹo hôm nay</b>${TIPS[new Date().getDate() % TIPS.length]}</div>`;
   const name = isTeacher ? 'cô Linh' : profile.name;
-  $('#hero').innerHTML = HERO + `<div class="hero-text"><h1>${leaf} Chào ${esc(name)}!</h1><p>${isTeacher ? 'Quản lý học viên và nội dung ôn luyện' : `${esc(myLevel())} · đã học đến ${lessonLabel(myLesson())} · cùng ôn tiếp nhé!`}</p></div>
+  $('#hero').innerHTML = HERO + `<div class="hero-text"><h1>${leaf} Chào ${esc(name)}!</h1><p>${isTeacher ? 'Quản lý học viên và nội dung ôn luyện' : `Phần Ôn tập lấy từ vựng Bài 1 – ${myLesson()} · chuỗi ${currentStreak(stats)} ngày học`}</p></div>
     <div class="hero-box">${new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })}
+    ${!isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><select class="inline sm" onchange="setMine('level',this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${myLevel() === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đã học đến</span><select class="inline sm" onchange="setMine('lesson',this.value)">${Array.from({ length: 15 }, (_, i) => `<option value="${i + 1}" ${myLesson() === i + 1 ? 'selected' : ''}>Bài ${i + 1}</option>`).join('')}</select></div>` : ''}
     ${isTeacher ? `<div class="row" style="gap:6px"><span>Xem như học viên đến</span><select class="inline sm" onchange="S.lesson=+this.value;render()">${Array.from({ length: 15 }, (_, i) => `<option value="${i + 1}" ${S.lesson === i + 1 ? 'selected' : ''}>Bài ${i + 1}</option>`).join('')}</select></div>` : ''}</div>`;
   if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
   rv();
 }
 window.render = render; window.S = S;
+window.setMine = async (field, val) => {
+  const v = { [field]: field === 'lesson' ? +val : val };
+  try {
+    await updateDoc(doc(db, 'users', me.uid), v); Object.assign(profile, v);
+    if (field === 'level') { await loadContent(); await loadBoard(); }
+    S.queue = []; S.flashDone = false; S.pg = null; render(); toast(field === 'lesson' ? `Ôn tập: từ Bài 1 đến Bài ${val}` : `Đã chuyển sang ${val}`);
+  } catch (e) { toast('Chưa lưu được: ' + e.code); }
+};
 function rv() { const y = window.scrollY; view().innerHTML = S.quiz ? vQuiz() : (VIEWS[S.page] || VIEWS.home)(); window.scrollTo(0, y); afterRender(); }
 window.rv = rv;
 
@@ -629,9 +675,9 @@ function vHome() {
         <div class="tile"><small>Từ cần ôn</small><div class="big">${due}</div></div>
         <div class="tile"><small>Từ mới chưa học</small><div class="big">${fresh}</div></div>
         <div class="tile"><small>Từ đã thuộc</small><div class="big">${known}/${lv.length}</div></div>
-        <div class="tile"><small>Chuỗi ngày học</small><div class="big">${stats.lastDay ? stats.streak || 1 : 0}</div></div>
+        <div class="tile"><small>Chuỗi ngày học</small><div class="big">${currentStreak(stats)}</div></div>
       </div>
-      <div class="bar" style="margin-top:12px"><i style="width:${lv.length ? known / lv.length * 100 : 0}%"></i></div>
+      <div style="margin-top:12px">${isTeacher ? '' : todayBar()}</div>
       <button class="btn" style="margin-top:14px;width:100%;justify-content:center" onclick="S.mode='flash';go('review')">${ic('cards')}Ôn flashcard</button>
     </section>
     ${w ? `<section class="card wod"><div class="card-h">${leaf}<h3>Từ của ngày</h3></div>
@@ -643,7 +689,7 @@ function vHome() {
       <div class="lesson-grid">${lessonsList().map(l => `<button class="lesson-btn" onclick="startLesson(${l})">${lessonLabel(l)}</button>`).join('')}</div></section>
   </div>`;
 }
-function lessonsList() { const set = new Set((content?.vocab || []).map(v => v.ls).concat((content?.examples || []).map(e => e.ls))); return [...set].filter(visibleLs).sort((a, b) => a - b); }
+function lessonsList() { const set = new Set((content?.vocab || []).map(v => v.ls).concat((content?.examples || []).map(e => e.ls))); return [...set].sort((a, b) => a - b); }
 function rankList(limit) {
   const arr = [...board]; if (!isTeacher && !arr.find(b => b.id === me.uid)) arr.push({ id: me.uid, name: profile.name, pts: monthPts() });
   arr.forEach(b => { if (b.id === me?.uid && !isTeacher) b.pts = monthPts(); });
@@ -653,14 +699,14 @@ function rankList(limit) {
 }
 function vRank() {
   return `<section class="card"><div class="card-h">${leaf}<h3>Bảng xếp hạng ${esc(myLevel())} – tháng ${month().slice(5)}</h3></div>${rankList()}</section>
-    <p class="muted" style="margin-top:12px">Cách tính điểm: mỗi thẻ flashcard đã ôn +1, mỗi câu đúng khi luyện tập +2, mỗi cặp ghép thẻ hoàn thành +5. Bảng xếp hạng làm mới vào ngày 1 hằng tháng.</p>`;
+    <p class="muted" style="margin-top:12px">Chuỗi ngày học: mỗi ngày học đủ 10 phút (chỉ tính lúc đang thao tác) được 1 ngày; mỗi tuần được lỡ 1 ngày mà không mất chuỗi. Cách tính điểm: mỗi thẻ flashcard đã ôn +1, mỗi câu đúng khi luyện tập +2, mỗi cặp ghép thẻ hoàn thành +5. Bảng xếp hạng làm mới vào ngày 1 hằng tháng.</p>`;
 }
 
 /* ====== Ôn tập ====== */
 window.setMode = m => { stopSpeed(); S.mode = m; S.pg = null; S.sp = null; S.queue = []; rv(); };
 function vReview() {
   const tabs = [['flash', 'Flashcard'], ['pair', 'Ghép thẻ'], ['speed', '60 giây'], ['write', 'Viết chữ']];
-  return `<div class="mode-tabs">${tabs.map(([k, l]) => `<button class="${S.mode === k ? 'on' : ''}" onclick="setMode('${k}')">${l}</button>`).join('')}</div>`
+  return `<p class="muted" style="margin:0 0 10px">Đang ôn từ vựng <b>${esc(myLevel())} Bài 1 – ${myLesson()}</b>. Đổi bài đã học ở ô phía trên.</p><div class="mode-tabs">${tabs.map(([k, l]) => `<button class="${S.mode === k ? 'on' : ''}" onclick="setMode('${k}')">${l}</button>`).join('')}</div>`
     + ({ flash: vFlash, pair: vPair, speed: vSpeed, write: vWrite }[S.mode] || vFlash)();
 }
 function vFlash() {
@@ -736,17 +782,17 @@ window.startWrite = () => {
 
 /* ====== Luyện theo bài + ngữ pháp: chạy từng câu ====== */
 function startQuiz(title, qs) { if (!qs.length) { toast('Chưa đủ dữ liệu để tạo bài luyện'); return; } S.quiz = { title, qs, i: 0, ans: undefined, checked: false, results: [], matchSel: null }; rv(); window.scrollTo(0, 0); }
-window.startLesson = ls => startQuiz(`Luyện ${lessonLabel(ls)}`, buildLessonQuiz(content, ls, myLesson()));
-window.startGrammar = gids => startQuiz('Luyện ngữ pháp', buildGrammarQuiz(content, gids, myLesson()));
+window.startLesson = ls => startQuiz(`Luyện ${lessonLabel(ls)}`, buildLessonQuiz(content, ls, ls));
+window.startGrammar = gids => startQuiz('Luyện ngữ pháp', buildGrammarQuiz(content, gids, EXT));
 function vPractice() {
   return `<section class="card"><div class="card-h">${leaf}<h3>Luyện theo bài</h3></div>
     <p class="muted" style="margin-top:-6px">Mỗi lượt khoảng 15 câu gồm từ vựng và ngữ pháp của bài, câu hỏi thay đổi mỗi lần làm. Mỗi câu đúng +2 điểm.</p>
     <div class="lesson-grid">${lessonsList().map(l => { const best = (stats.best || {})[l]; return `<button class="lesson-btn" onclick="startLesson(${l})">${lessonLabel(l)}${best !== undefined ? `<small>Cao nhất ${best}%</small>` : ''}</button>`; }).join('')}</div></section>`;
 }
 function vGrammar() {
-  const gs = (content.grammar || []).filter(g => visibleLs(g.ls));
+  const gs = content.grammar || [];
   const byLs = {}; gs.forEach(g => (byLs[g.ls] = byLs[g.ls] || []).push(g));
-  return `<section class="card"><div class="card-h">${leaf}<h3>Ngữ pháp đã học</h3><button class="btn sm" onclick="startGrammar(${esc(JSON.stringify(gs.map(g => g.id)))})">Luyện trộn tất cả</button></div>
+  return `<section class="card"><div class="card-h">${leaf}<h3>Ngữ pháp HSK</h3><button class="btn sm" onclick="startGrammar(${esc(JSON.stringify(gs.map(g => g.id)))})">Luyện trộn tất cả</button></div>
     ${Object.keys(byLs).sort((a, b) => a - b).map(ls => `<h3 class="ls-h">${lessonLabel(+ls)}</h3><div class="grid g3" style="gap:12px">${byLs[ls].map(g => {
       const n = content.examples.filter(e => e.gid === g.id).length;
       return `<div class="gcard"><b>${esc(g.name)}</b><div class="hz st">${esc(g.st)}</div><div class="muted">${esc(g.expl)}</div>
@@ -958,7 +1004,7 @@ function vMe() {
   const hard = lv.filter(v => (srs[v.h]?.w || 0) > 0).sort((a, b) => srs[b.h].w - srs[a.h].w).slice(0, 10);
   return `<div class="grid g3">
     <div class="tile"><small>Điểm tháng này</small><div class="big">${monthPts()}</div></div>
-    <div class="tile"><small>Chuỗi ngày học</small><div class="big">${stats.streak || 0}</div></div>
+    <div class="tile"><small>Chuỗi ngày học</small><div class="big">${currentStreak(stats)}</div>${todayBar()}</div>
     <div class="tile"><small>Từ đã thuộc</small><div class="big">${lv.filter(v => (srs[v.h]?.b || 0) >= 2).length}/${lv.length}</div></div>
     <section class="card span2"><div class="card-h">${leaf}<h3>Mức độ thuộc từ theo bài</h3></div>
       ${Object.keys(byLs).sort((a, b) => a - b).map(l => `<div style="margin-bottom:8px"><div class="row"><span class="grow">${lessonLabel(+l)}</span><span class="muted">${byLs[l].k}/${byLs[l].n} từ</span></div><div class="bar"><i style="width:${byLs[l].k / byLs[l].n * 100}%"></i></div></div>`).join('')}</section>
@@ -981,7 +1027,7 @@ function vStudents() {
   if (!students) { loadStudents().catch(e => toast('Lỗi tải học viên: ' + e.code)); return '<div class="card"><p class="muted">Đang tải danh sách học viên…</p></div>'; }
   const waiting = students.filter(u => !u.approved).length;
   return `<section class="card"><div class="card-h">${leaf}<h3>Học viên (${students.length})</h3>${waiting ? `<span class="pill warn">${waiting} người chờ duyệt</span>` : ''}<button class="btn ghost sm" onclick="reloadStudents()">Tải lại</button></div>
-    <p class="muted" style="margin-top:-6px">Học viên đăng nhập lần đầu sẽ hiện ở đây với trạng thái "Chờ duyệt". Cô sửa tên, chọn cấp độ và bài đã học tới, rồi bấm Lưu.</p>
+    <p class="muted" style="margin-top:-6px">Học viên đăng nhập lần đầu sẽ hiện ở đây với trạng thái "Chờ duyệt". Cô chỉ cần duyệt (và sửa tên nếu cần) rồi bấm Lưu. Cấp độ và bài đã học do học viên tự chọn, cô vẫn sửa được khi cần.</p>
     <div class="table-wrap"><table><tr><th>Học viên</th><th>Trạng thái</th><th>Cấp độ</th><th>Đã học đến</th><th>Điểm tháng</th><th></th></tr>
     ${students.map(u => `<tr><td><input class="cell-in" id="n_${u.id}" value="${esc(u.name)}"><div class="muted" style="font-size:12px">${esc(u.email)}</div></td>
       <td><select class="inline sm" id="a_${u.id}"><option value="1" ${u.approved ? 'selected' : ''}>Đã duyệt</option><option value="0" ${u.approved ? '' : 'selected'}>Chờ duyệt / Khóa</option></select></td>
@@ -1001,7 +1047,8 @@ window.studentDetail = async id => {
   const sm = a.exists() ? a.data().map || {} : {}, st = b.exists() ? b.data() : {};
   const known = Object.values(sm).filter(r => r.b >= 2).length, hard = Object.entries(sm).filter(([, r]) => r.w > 0).sort((x, y) => y[1].w - x[1].w).slice(0, 12);
   $('#detail').innerHTML = `<section class="card" style="margin-top:16px"><div class="card-h">${leaf}<h3>${esc(u.name)}</h3></div>
-    <div class="grid g3"><div class="tile"><small>Lần học gần nhất</small><div class="big" style="font-size:20px">${st.lastDay || '–'}</div></div><div class="tile"><small>Chuỗi ngày</small><div class="big">${st.streak || 0}</div></div><div class="tile"><small>Từ đã thuộc</small><div class="big">${known}</div></div></div>
+    <div class="grid g3"><div class="tile"><small>Lần học gần nhất</small><div class="big" style="font-size:20px">${st.lastDay || '–'}</div></div><div class="tile"><small>Chuỗi ngày học</small><div class="big">${currentStreak(st)}</div></div><div class="tile"><small>Từ đã thuộc</small><div class="big">${known}</div></div></div>
+    <h3 class="ls-h">Số phút học 7 ngày gần nhất</h3><div class="mins7">${Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); const k = dayStr(d), m = Math.floor(((st.mins || {})[k] || 0) / 60); return `<div><i style="height:${Math.min(60, m * 4)}px;${m >= 10 ? '' : 'opacity:.45'}"></i>${m}'<br><span class="muted">${k.slice(8)}/${k.slice(5, 7)}</span></div>`; }).join('')}</div>
     <h3 class="ls-h">Từ hay sai</h3><div class="bank">${hard.length ? hard.map(([h, r]) => `<span class="chip"><span class="hz">${esc(h)}</span> · sai ${r.w}</span>`).join('') : '<span class="muted">Chưa có.</span>'}</div>
     <h3 class="ls-h">Lượt luyện gần đây</h3>${(st.quizzes || []).length ? `<table>${st.quizzes.slice(0, 8).map(x => `<tr><td>${esc(x.t)}</td><td><b>${x.sc}/${x.n}</b></td><td class="muted">${new Date(x.at).toLocaleString('vi-VN')}</td></tr>`).join('')}</table>` : '<p class="muted">Chưa có.</p>'}</section>`;
   $('#detail').scrollIntoView({ behavior: 'smooth' });
