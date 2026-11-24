@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#556B2F">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Xiaoliing">
 <title>Tiếng Trung Xiaoliing – Góc ôn luyện</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -292,6 +298,10 @@ a.btn{text-decoration:none}
 .pcard .btn{margin-top:auto;justify-content:center}.pcard small{font-size:12px;color:var(--muted)}
 .pnum{background:var(--olive);color:#fff;border-radius:8px;padding:2px 10px;font-weight:800;font-size:13px}.pcard.lock .pnum{background:#E8DFC8;color:#9A9179}
 @media (max-width:860px){.path-hero{padding:16px}.path-hero h2{font-size:21px}.hero-mascot{width:110px;height:110px}}
+.quick-card{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px;border:1.5px solid var(--olive-l)}
+.quick-card .grow{flex:1 1 170px;min-width:0}.install-card .grow{flex:1 1 200px;min-width:0}.quick-card h3{font-size:19px}.quick-card p{margin:4px 0 0}.quick-mascot{width:64px;height:64px;flex-shrink:0}
+.install-card{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.install-card h3{font-size:17px}.install-card p{margin:4px 0 0}
+tr.warn-row td{background:#FBF0D6}
 .intro-list{margin:8px 0 0;padding-left:18px;line-height:1.7}
 .hz-line{font-family:'LXGW WenKai','KaiTi',serif;font-size:18px}
 </style>
@@ -587,7 +597,21 @@ function buildSandhiQuiz(n = 10) {
   return shuffle(AM.sandhi).slice(0, n).map(([h, right, wrong, rule]) => { const o = shuffle([right, wrong]);
     return { type: 'listen', say: h, label: 'Biến điệu', prompt: `Từ <span class="hz" style="font-size:26px">${esc(h)}</span> thực tế đọc là gì?`, opts: o, a: o.indexOf(right), expl: rule }; });
 }
-if (typeof module !== 'undefined') module.exports = { AM, markPy, buildToneQuiz, buildPairQuiz, buildPyQuiz, buildSandhiQuiz, publicVocab, parseSite, reshuffle, parseContent, lessonNum, toneVariants, vocabQ, matchQ, exampleQ, isRight, correctText, buildLessonQuiz, buildGrammarQuiz, rateCard, dueWords, EXT };
+
+/* Ôn nhanh 5 phút: tối đa 10 từ đến hạn (thiếu thì lấy từ hay sai, rồi từ mới) + 5 câu ngữ pháp của bài gần nhất */
+function buildQuickQuiz(d, srs, now, learned, lesson) {
+  const due = learned.filter(v => srs[v.k] && srs[v.k].d <= now), hard = learned.filter(v => srs[v.k]?.w > 0 && !due.includes(v)), fresh = learned.filter(v => !srs[v.k]);
+  const words = [...shuffle(due), ...shuffle(hard), ...fresh].slice(0, 10), pool = learned.length >= 4 ? learned : d.vocab;
+  const kinds = ['meaning', 'hanzi', 'pinyin', 'listen'];
+  const vq = words.map((w, i) => { let q = null; for (let k = 0; k < 5 && !q; k++) q = vocabQ(w, pool, kinds[(i + k) % 4]); return q; }).filter(Boolean);
+  let ex = d.examples.filter(e => e.ls === lesson), sq = d.questions.filter(q => q.ls === lesson);
+  if (ex.length + sq.length < 3) { ex = d.examples.filter(e => e.ls <= lesson); sq = d.questions.filter(q => q.ls <= lesson); }
+  const exPool = d.examples.filter(e => e.ls <= lesson);
+  const gq = shuffle([...shuffle(ex).slice(0, 5).map((e, i) => exampleQ(e, exPool.length >= 4 ? exPool : d.examples, ['order', 'fill', 'translate'][i % 3])), ...sq.map(reshuffle)]).slice(0, 5);
+  if (vq.length) vq[0].sec = 'Từ vựng đến hạn'; if (gq.length) gq[0].sec = 'Ngữ pháp bài gần nhất';
+  return [...vq, ...gq];
+}
+if (typeof module !== 'undefined') module.exports = { buildQuickQuiz, AM, markPy, buildToneQuiz, buildPairQuiz, buildPyQuiz, buildSandhiQuiz, publicVocab, parseSite, reshuffle, parseContent, lessonNum, toneVariants, vocabQ, matchQ, exampleQ, isRight, correctText, buildLessonQuiz, buildGrammarQuiz, rateCard, dueWords, EXT };
 
 </script>
 <script type="module">
@@ -710,7 +734,7 @@ async function boot() {
         srs = a.exists() ? a.data().map || {} : {}; stats = b.exists() ? b.data() : {};
       } else { S.level = profile.level || 'HSK1'; S.lesson = maxLs(S.level); }
       await loadContent(); await loadBoard();
-      S.page = isTeacher ? 'students' : 'home'; render();
+      S.page = isTeacher ? 'class' : 'home'; render();
     } catch (e) { console.error(e); showGate('Có lỗi khi tải dữ liệu', esc(e.message), true); }
   });
 }
@@ -780,7 +804,7 @@ const TIPS = ['Ôn flashcard 10 phút mỗi ngày hiệu quả hơn học dồn 
 /* ====== Khung ====== */
 const NAV_G = [['intro', 'Trang chủ', 'home'], ['review', 'Ôn từ vựng', 'cards'], ['path', 'Lộ trình', 'path']];
 const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['path', 'Lộ trình', 'path'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['exam', 'Thi thử', 'clock'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat']];
-const NAV_T = [['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['path', 'Lộ trình', 'path'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
+const NAV_T = [['class', 'Tổng hợp lớp', 'chart'], ['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['path', 'Lộ trình', 'path'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
 window.go = p => { if (p === 'login') return login(); stopSpeed(); stopRec();  S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
 function render() {
   shell(true);
@@ -797,7 +821,7 @@ function render() {
     <div class="hero-box">${new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })}
     ${!isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><select class="inline sm" onchange="setMine('level',this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${myLevel() === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đã học đến</span><select class="inline sm" onchange="setMine('lesson',this.value)">${lsOpts(maxLs(myLevel()), myLesson())}</select></div>` : ''}
     ${isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><span>Xem như học viên</span><select class="inline sm" onchange="setTeacherLevel(this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${S.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đến</span><select class="inline sm" onchange="S.lesson=+this.value;render()">${lsOpts(maxLs(S.level), S.lesson)}</select></div>` : ''}</div>`;
-  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam', 'sound', 'path'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
+  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam', 'sound', 'path', 'class'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
   rv();
 }
 window.render = render; window.S = S;
@@ -824,7 +848,7 @@ function vHome() {
   const lv = learnedVocab(), due = dueWords(lv, srs, Date.now(), 0).length, fresh = lv.filter(v => !srs[v.k]).length;
   const known = lv.filter(v => (srs[v.k]?.b || 0) >= 2).length;
   const w = lv.length ? lv[new Date().getDate() % lv.length] : null;
-  return `${admBlock()}${due ? `<div class="banner">${ic('clock')}<div>Bạn có <b>${due} từ</b> đến hạn ôn hôm nay.</div><button class="btn sm" style="margin-left:auto" onclick="S.mode='flash';go('review')">Ôn ngay</button></div>` : ''}
+  return `${quickCard()}${installCard()}${admBlock()}
   <div class="grid g3">
     <section class="card"><div class="card-h">${leaf}<h3>Hôm nay</h3></div>
       <div class="grid g2" style="gap:10px">
@@ -973,7 +997,8 @@ function answered(q, a) {
 }
 window.checkQ = () => {
   const z = S.quiz, q = z.qs[z.i], ok = isRight(q, z.ans); z.checked = true; z.results.push(ok);
-  if (!ok && q.w && srs[q.w] !== undefined) { srs[q.w].w = (srs[q.w].w || 0) + 1; }
+  if (z.quick && q.w && !isTeacher) srs[q.w] = rateCard(srs[q.w], ok ? 2 : 0, Date.now());
+  else if (!ok && q.w && srs[q.w] !== undefined) { srs[q.w].w = (srs[q.w].w || 0) + 1; }
   else if (!ok && q.w) srs[q.w] = { b: 0, d: Date.now(), w: 1 };
   if (ok && !isTeacher) addPoints(2); else if (!ok) scheduleSave();
   rv();
@@ -992,7 +1017,7 @@ function vQuiz() {
   if (z.done) {
     const ok = z.done.pct >= PASS, bloomNow = ok && z.lesson, phNow = z.kind && phDone();
     const msg = bloomNow ? `Chuông hoa ${lessonLabel(z.lesson)} đã nở!` : phNow ? 'Bạn đã hoàn thành Phòng luyện âm!' : z.done.pct === 100 ? 'Xuất sắc, không sai câu nào!' : ok ? 'Đạt rồi, giỏi lắm!' : `Cần đạt ${PASS}% nhé. Ôn lại rồi làm lại, bạn làm được!`;
-    const next = phNow ? `<button class="btn" onclick="startLesson(1)">Bắt đầu ôn luyện Bài 1 ${ic('arrow')}</button>` : z.kind ? `<button class="btn" onclick="go('sound')">Về phòng luyện âm</button>` : z.lesson ? `<button class="btn" onclick="go('path')">Về lộ trình</button>` : `<button class="btn" onclick="S.mode='flash';go('review')">Ôn flashcard</button>`;
+    const next = z.quick ? `<button class="btn" onclick="go('home')">Về trang chủ</button>` : phNow ? `<button class="btn" onclick="startLesson(1)">Bắt đầu ôn luyện Bài 1 ${ic('arrow')}</button>` : z.kind ? `<button class="btn" onclick="go('sound')">Về phòng luyện âm</button>` : z.lesson ? `<button class="btn" onclick="go('path')">Về lộ trình</button>` : `<button class="btn" onclick="S.mode='flash';go('review')">Ôn flashcard</button>`;
     return top + `<section class="card score-card">${mascot(bloomNow || phNow ? 'chuong' : ok ? 'vui' : 'dongvien', 'result-mascot')}<div class="muted">Kết quả</div><div class="big">${z.done.sc}/${z.qs.length}</div>
     <div>${msg}</div>${isGuest ? '' : `<div class="muted" style="margin-top:6px">+${z.done.sc * 2} điểm</div>`}<div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn ghost" onclick="S.quiz=null;rv()">Làm lại / quay lại</button>${next}</div></section>`;
   }
@@ -1059,7 +1084,7 @@ function admBlock() {
     ${zalo ? `<a class="btn zalo" href="${esc(zaloLink(zalo))}" target="_blank" rel="noopener">${ic('chat')}Nhắn Zalo đăng ký</a>` : ''}</section>`;
 }
 function vIntro() {
-  return `${admBlock()}<section class="card"><div class="card-h">${leaf}<h3>Ôn từ vựng miễn phí</h3></div>
+  return `${admBlock()}${installCard()}<section class="card"><div class="card-h">${leaf}<h3>Ôn từ vựng miễn phí</h3></div>
       <p class="muted">Flashcard, ghép thẻ, thử thách 60 giây và luyện viết chữ cho HSK1–HSK3. ${profile.pending ? 'Tài khoản của bạn đang chờ cô duyệt.' : 'Học viên của lớp đăng nhập để lưu tiến độ và làm bài luyện ngữ pháp.'}</p>
       <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" onclick="go('review')">${ic('cards')}Bắt đầu ôn từ vựng</button><button class="btn ghost" onclick="go('sound')">${ic('speak')}Phòng luyện âm</button>${!me ? `<button class="btn ghost" onclick="login()">${ic('user')}Đăng nhập học viên</button>` : ''}</div></section>`;
 }
@@ -1393,7 +1418,83 @@ function vPath() {
     : `<div class="card" style="margin-top:14px"><p class="muted">Cô giáo chưa tải nội dung cho cấp độ này.</p></div>`}`;
 }
 
-const VIEWS = { intro: vIntro, exam: vExam, sound: vSound, path: vPath, practice: vPath, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
+/* ====== Ôn nhanh 5 phút ====== */
+function recentLesson() { const q = (stats.quizzes || []).find(x => /^Luyện Bài \d+$/.test(x.t)); const l = q ? +q.t.match(/\d+/)[0] : myLesson(); return Math.min(l, maxLs(myLevel())); }
+window.startQuick = () => {
+  if (!content) { toast('Chưa có nội dung cho cấp độ này'); return; }
+  startQuiz('Ôn nhanh 5 phút', buildQuickQuiz(content, srs, Date.now(), learnedVocab(), recentLesson())); if (S.quiz) S.quiz.quick = true;
+};
+function quickCard() {
+  if (isTeacher || isGuest || !content) return '';
+  const due = dueWords(learnedVocab(), srs, Date.now(), 0).length, l = recentLesson();
+  return `<section class="card quick-card">${mascot('chao', 'quick-mascot')}<div class="grow"><h3>Ôn nhanh 5 phút</h3>
+    <p class="muted">${due ? `<b>${due} từ</b> đến hạn ôn` : 'Ôn từ hay sai và từ mới'} + 5 câu ngữ pháp ${lessonLabel(l)}. Một lượt khoảng 15 câu.</p></div>
+    <button class="btn" onclick="startQuick()">Bắt đầu ${ic('arrow')}</button></section>`;
+}
+
+/* ====== Giáo viên: tổng hợp lớp ====== */
+let cls = null;
+async function loadClass() {
+  const s = await getDocs(collection(db, 'users'));
+  const us = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.approved && (u.email || '').toLowerCase() !== TEACHER_EMAIL.toLowerCase());
+  await Promise.all(us.map(async u => {
+    const [a, b] = await Promise.all([getDoc(doc(db, 'users', u.id, 'data', 'srs')), getDoc(doc(db, 'users', u.id, 'data', 'stats'))]);
+    u.srs = a.exists() ? a.data().map || {} : {}; u.st = b.exists() ? b.data() : {};
+  }));
+  cls = us; rv();
+}
+function last7() { return Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - 6 + i); return dayStr(d); }); }
+function vClass() {
+  if (!cls) { loadClass().catch(e => toast('Lỗi tải dữ liệu lớp: ' + e.code)); return '<div class="card"><p class="muted">Đang tải dữ liệu cả lớp…</p></div>'; }
+  const lv = S.level, n = maxLs(lv), days = last7(), us = cls.filter(u => (u.level || 'HSK1') === lv);
+  const act = us.map(u => { const m = u.st.mins || {}, secs = days.map(d => m[d] || 0);
+    return { u, mins: Math.round(secs.reduce((a, b) => a + b, 0) / 60), days: secs.filter(x => x >= 600).length, last: u.st.lastDay || '', streak: currentStreak(u.st) }; })
+    .sort((a, b) => a.mins - b.mins);
+  const idle = act.filter(a => a.mins === 0);
+  const bo = (st, l) => { const b = st.best || {}; return b[lv + '-' + l] ?? (lv === 'HSK1' ? b[l] : undefined); };
+  const les = Array.from({ length: n }, (_, i) => i + 1).map(l => { const sc = us.map(u => bo(u.st, l)).filter(x => x !== undefined);
+    return { l, tried: sc.length, pass: sc.filter(x => x >= PASS).length, avg: sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : null }; });
+  const vk = {}; (content?.vocab || []).forEach(v => vk[v.k] = v);
+  const agg = {}; us.forEach(u => Object.entries(u.srs).forEach(([k, r]) => { if (!vk[k] || !(r.w > 0)) return; (agg[k] = agg[k] || { w: 0, n: 0 }); agg[k].w += r.w; agg[k].n++; }));
+  const top = Object.entries(agg).sort((a, b) => b[1].n - a[1].n || b[1].w - a[1].w).slice(0, 10);
+  window._topWords = top.map(([k]) => vk[k]);
+  return `<div class="row" style="margin-bottom:12px;gap:8px;flex-wrap:wrap"><h2 style="font-size:20px" class="grow">Tổng hợp lớp ${esc(lv)} · ${us.length} học viên</h2>
+      ${['HSK1', 'HSK2', 'HSK3'].map(l => `<button class="btn ${l === lv ? '' : 'ghost'} sm" onclick="setTeacherLevel('${l}')">${l}</button>`).join('')}<button class="btn ghost sm" onclick="cls=null;rv()">Tải lại</button></div>
+    <div class="grid g3">
+      <div class="tile"><small>Chưa học trong 7 ngày</small><div class="big">${idle.length}</div></div>
+      <div class="tile"><small>Học đủ 10 phút ≥ 3 ngày/tuần</small><div class="big">${act.filter(a => a.days >= 3).length}/${us.length}</div></div>
+      <div class="tile"><small>Tổng phút cả lớp 7 ngày</small><div class="big">${act.reduce((a, b) => a + b.mins, 0)}</div></div>
+    <section class="card span3"><div class="card-h">${leaf}<h3>Hoạt động 7 ngày qua</h3></div>
+      ${us.length ? `<div class="table-wrap"><table><tr><th>Học viên</th><th>Số phút</th><th>Ngày học đủ</th><th>Chuỗi</th><th>Lần học gần nhất</th><th>Đã học đến</th></tr>
+      ${act.map(a => `<tr><td><b>${esc(a.u.name)}</b>${a.mins === 0 ? ' <span class="pill bad">Chưa học tuần này</span>' : ''}</td><td>${a.mins}'</td><td>${a.days}/7</td><td>${a.streak}</td><td class="muted">${a.last ? a.last.split('-').reverse().join('/') : '–'}</td><td>Bài ${a.u.lesson || 1}</td></tr>`).join('')}</table></div>` : '<p class="muted">Chưa có học viên nào ở cấp độ này.</p>'}</section>
+    <section class="card span2"><div class="card-h">${leaf}<h3>Kết quả từng bài</h3></div>
+      <p class="muted" style="margin-top:-6px">Đạt = làm bài luyện từ ${PASS}% trở lên (điểm cao nhất của mỗi học viên). Bài tô vàng: đã có người làm nhưng chưa tới một nửa đạt.</p>
+      <div class="table-wrap"><table><tr><th>Bài</th><th>Đã làm</th><th>Đạt</th><th>Điểm TB</th><th style="width:40%"></th></tr>
+      ${les.filter(x => x.l <= Math.max(1, ...us.map(u => u.lesson || 1))).map(x => `<tr class="${x.tried && x.pass * 2 < x.tried ? 'warn-row' : ''}"><td>Bài ${x.l}</td><td>${x.tried}/${us.length}</td><td>${x.pass}</td><td>${x.avg ?? '–'}${x.avg !== null ? '%' : ''}</td><td><div class="bar"><i style="width:${us.length ? x.pass / us.length * 100 : 0}%"></i></div></td></tr>`).join('')}</table></div></section>
+    <section class="card"><div class="card-h">${leaf}<h3>10 từ cả lớp hay sai</h3></div>
+      ${top.length ? top.map(([k, r]) => { const v = vk[k]; return `<div class="list-item"><span class="hz" style="font-size:20px;min-width:48px">${esc(v.h)}</span><div class="grow">${esc(v.p)} · ${esc(v.m)}<div class="muted">Bài ${v.ls === EXT ? 'MR' : v.ls}</div></div><span class="pill bad">${r.n} người</span></div>`; }).join('')
+        + `<button class="btn ghost sm" style="margin-top:10px" onclick="copyTop()">Chép danh sách</button>` : '<p class="muted">Chưa có dữ liệu.</p>'}</section>
+    </div>`;
+}
+window.copyTop = async () => { const t = (window._topWords || []).map(v => `${v.h}\t${v.p}\t${v.m}`).join('\n'); try { await navigator.clipboard.writeText(t); toast('Đã chép, dán vào slide hoặc Excel được ngay'); } catch (e) { toast('Máy chưa cho phép chép tự động'); } };
+
+/* ====== Cài web như ứng dụng ====== */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (['home', 'intro'].includes(S.page) && !S.quiz) rv(); });
+const isStandalone = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone; } catch (e) { return false; } };
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+function installCard() {
+  if (isStandalone() || LS.get('noinstall')) return '';
+  if (!installEvt && !isIOS() && !/android/i.test(navigator.userAgent || '')) return '';
+  return `<section class="card install-card"><div class="ph-ic">${ic('upload')}</div><div class="grow"><h3>Cài web lên điện thoại</h3>
+    <p class="muted">${installEvt ? 'Bấm Cài đặt để có biểu tượng hoa linh lan trên màn hình chính, mở ra như một ứng dụng.' : isIOS() ? 'Trên iPhone: mở web bằng Safari → bấm nút Chia sẻ (ô vuông có mũi tên lên) → chọn "Thêm vào MH chính".' : 'Trên Android: bấm dấu ⋮ của Chrome → chọn "Thêm vào màn hình chính" hoặc "Cài đặt ứng dụng".'}</p></div>
+    <div class="row" style="gap:8px">${installEvt ? `<button class="btn" onclick="doInstall()">Cài đặt</button>` : ''}<button class="btn ghost sm" onclick="LS.set('noinstall',1);rv()">Ẩn</button></div></section>`;
+}
+window.doInstall = async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (e) { } installEvt = null; rv(); };
+window.LS = LS;
+if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(() => { }); } catch (e) { } }
+
+const VIEWS = { class: vClass, intro: vIntro, exam: vExam, sound: vSound, path: vPath, practice: vPath, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
 boot();
 
 </script>
