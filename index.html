@@ -271,6 +271,7 @@ a.btn{text-decoration:none}
 .am-btn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--olive-d);font-size:18px}
 .am-btn b{font-weight:800}.am-btn small{color:var(--muted);font-size:13px}
 .am-btn:hover,.am-btn:active{border-color:var(--olive);background:var(--sage-l)}
+.gate-or{display:flex;align-items:center;gap:10px;width:100%;color:var(--muted);font-size:13px}.gate-or::before,.gate-or::after{content:'';flex:1;border-top:1px dashed var(--line)}
 .intro-list{margin:8px 0 0;padding-left:18px;line-height:1.7}
 .hz-line{font-family:'LXGW WenKai','KaiTi',serif;font-size:18px}
 </style>
@@ -673,7 +674,7 @@ async function boot() {
   onAuthStateChanged(auth, async u => {
     me = u; showGate('Đang tải…', '');
     await loadSite();
-    if (!u) { await startGuest(false); return; }
+    if (!u) { if (sessionStorage.getItem('xl_guest')) await startGuest(false); else showLogin(); return; }
     isTeacher = (u.email || '').toLowerCase() === TEACHER_EMAIL.toLowerCase();
     try {
       const ref = doc(db, 'users', u.uid); let snap = await getDoc(ref);
@@ -713,15 +714,19 @@ function showGate(title, body, withOut) {
 function showLogin() {
   shell(false);
   $('#gate').innerHTML = `<div class="gate-card"><div class="sign"><small>Tiếng Trung</small><b>Xiaoliing</b></div>
-    <h2>Góc ôn luyện</h2><p class="muted">Đăng nhập bằng tài khoản Google (Gmail) để ôn từ vựng, ngữ pháp và lưu tiến độ.</p>
-    <button class="btn" onclick="login()">${ic('user')}Đăng nhập bằng Google</button></div>`;
+    <h2>Góc ôn luyện</h2><p class="muted">Học viên đăng nhập bằng tài khoản Google (Gmail) để ôn từ vựng, ngữ pháp, luyện âm và lưu tiến độ.</p>
+    <button class="btn" onclick="login()">${ic('user')}Đăng nhập bằng Google</button>
+    <div class="gate-or">hoặc</div>
+    <button class="btn ghost" onclick="enterGuest()">Vào với tư cách khách</button>
+    <p class="muted" style="font-size:12.5px;margin:0">Khách không được lưu tiến độ vào tài khoản và chỉ dùng được Ôn từ vựng, Luyện âm. Bài luyện ngữ pháp, bảng xếp hạng, thi thử dành cho học viên.</p></div>`;
 }
+window.enterGuest = async () => { try { sessionStorage.setItem('xl_guest', '1'); } catch (e) { } showGate('Đang tải…', ''); await startGuest(false); };
 window.login = async () => {
   const p = new GoogleAuthProvider();
   try { await signInWithPopup(auth, p); }
   catch (e) { if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') await signInWithRedirect(auth, p); else toast('Đăng nhập chưa thành công: ' + e.code); }
 };
-window.logout = async () => { if (saveTimer) await saveAll(); await signOut(auth); location.reload(); };
+window.logout = async () => { try { sessionStorage.removeItem('xl_guest'); } catch (e) { } if (saveTimer) await saveAll(); await signOut(auth); location.reload(); };
 
 /* ====== Icon ====== */
 const IC = {
@@ -752,7 +757,7 @@ const TIPS = ['Ôn flashcard 10 phút mỗi ngày hiệu quả hơn học dồn 
 const NAV_G = [['intro', 'Trang chủ', 'home'], ['review', 'Ôn từ vựng', 'cards'], ['sound', 'Luyện âm', 'speak']];
 const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['sound', 'Luyện âm', 'speak'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['exam', 'Thi thử', 'clock'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat']];
 const NAV_T = [['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['sound', 'Luyện âm', 'speak'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
-window.go = p => { if (p === 'login') return login(); stopSpeed(); stopRec(); S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
+window.go = p => { if (p === 'login') return login(); stopSpeed(); stopRec(); if (p === 'sound') warmAm(); S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
 function render() {
   shell(true);
   const items = isTeacher ? NAV_T : isGuest ? NAV_G : NAV_S;
@@ -1246,8 +1251,23 @@ window.saveContent = async () => {
 
 
 /* ====== Luyện âm ====== */
-let amAudio = null;
-window.playAm = k => { try { if (amAudio) amAudio.pause(); amAudio = new Audio('am/' + k + '.mp3'); amAudio.play().catch(() => toast('Chưa phát được âm thanh, kiểm tra mạng hoặc âm lượng')); } catch (e) { toast('Thiết bị chưa phát được âm thanh'); } };
+/* Toàn bộ giọng cô nằm trong 1 file luyenam.mp3; bảng dưới là [giây bắt đầu, độ dài] của từng âm */
+const AMS = {"ma1":[0.4,0.94],"ma2":[1.74,0.84],"ma3":[2.98,0.94],"ma4":[4.32,0.62],"ba1":[5.34,0.82],"ba2":[6.56,0.74],"ba3":[7.7,0.84],"ba4":[8.94,0.54],"da1":[9.88,0.76],"da2":[11.04,0.78],"da3":[12.22,0.8],"da4":[13.42,0.48],"tang1":[14.3,1.0],"tang2":[15.7,1.0],"tang3":[17.1,1.021],"tang4":[18.521,0.66],"yi1":[19.581,0.88],"yi2":[20.861,0.86],"yi3":[22.121,0.82],"yi4":[23.341,0.5],"wu1":[24.241,0.84],"wu2":[25.481,0.88],"wu3":[26.761,0.94],"wu4":[28.101,0.5],"shi1":[29.001,1.12],"shi2":[30.521,1.24],"shi3":[32.161,1.38],"shi4":[33.941,0.72],"tong1":[35.061,1.1],"tong2":[36.561,1.2],"tong3":[38.161,1.1],"tong4":[39.661,0.64],"hao1":[40.701,1.14],"hao2":[42.241,1.2],"hao3":[43.841,1.08],"hao4":[45.321,0.52],"ji1":[46.241,1.0],"ji2":[47.641,1.06],"ji3":[49.101,1.021],"ji4":[50.522,0.54],"bo1":[51.462,0.88],"po1":[52.742,1.14],"mo1":[54.282,1.2],"fo1":[55.882,1.18],"de1":[57.462,1.04],"te1":[58.902,1.28],"ne1":[60.582,1.2],"le1":[62.182,1.26],"ge1":[63.842,1.26],"ke1":[65.502,1.46],"he1":[67.362,1.24],"qi1":[69.002,1.42],"xi1":[70.822,1.42],"zhi1":[72.642,1.2],"chi1":[74.242,1.32],"ri4":[75.962,0.6],"zi1":[76.962,0.98],"ci1":[78.342,1.28],"si1":[80.022,1.021],"a1":[81.443,0.96],"o1":[82.803,0.88],"e1":[84.083,0.98],"yu1":[85.463,1.06],"ai1":[86.923,1.1],"ei1":[88.423,1.26],"ao1":[90.083,1.04],"ou1":[91.523,1.14],"an1":[93.063,1.16],"en1":[94.623,1.18],"ang1":[96.203,1.08],"eng1":[97.683,1.18],"hong1":[99.263,1.38],"er2":[101.043,0.98],"ya1":[102.423,1.22],"ye1":[104.043,1.26],"yao1":[105.703,1.22],"you1":[107.323,1.28],"yan1":[109.003,1.38],"yin1":[110.783,1.22],"yang1":[112.403,1.28],"ying1":[114.083,1.24],"yong1":[115.723,1.18],"wa1":[117.303,1.16],"wo1":[118.863,1.18],"wai1":[120.443,1.24],"wei1":[122.083,1.2],"wan1":[123.683,1.28],"wen1":[125.363,1.22],"wang1":[126.983,1.26],"weng1":[128.643,1.26],"yue1":[130.303,1.26],"yuan1":[131.963,1.38],"yun1":[133.743,1.26],"pa1":[135.403,1.22],"du4":[137.023,0.5],"tu4":[137.923,0.62],"gu1":[138.943,0.96],"ku1":[140.303,1.28],"zao3":[141.983,0.96],"zhao3":[143.343,0.98],"cu1":[144.723,1.16],"chu1":[146.283,1.16],"san1":[147.843,1.12],"shan1":[149.363,1.34],"lao3":[151.103,1.1],"nao3":[152.603,1.08],"lu4":[154.083,0.64],"ru4":[155.123,0.66],"hu1":[156.183,0.94],"fu1":[157.523,1.1],"zi4":[159.023,0.6],"ci4":[160.023,0.7],"si4":[161.123,0.56],"fan1":[162.083,1.04],"fang1":[163.523,1.021],"fen1":[164.944,0.96],"feng1":[166.304,1.1],"xin1":[167.804,1.2],"xing1":[169.404,1.34],"xian1":[171.144,1.36],"xiang1":[172.904,1.5],"chuan2":[174.804,1.18],"chuang2":[176.384,1.28],"lv4":[178.064,0.64],"nv3":[179.104,1.14],"nu3":[180.644,1.08],"xie4":[182.124,0.76],"xue4":[183.284,0.72],"xuan1":[184.404,1.26],"mei4":[186.064,0.681],"mai4":[187.145,0.62],"dou1":[188.165,0.98],"duo1":[189.545,1.12]};
+let actx = null, amBuf = null, amLoading = null, amSrc = null;
+function warmAm() {
+  try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; actx = actx || new AC(); if (actx.state === 'suspended') actx.resume(); } catch (e) { }
+  if (!amLoading) amLoading = fetch('luyenam.mp3').then(r => { if (!r.ok) throw new Error('404'); return r.arrayBuffer(); })
+    .then(ab => new Promise((res, rej) => actx.decodeAudioData(ab, res, rej))).then(b => amBuf = b).catch(e => { amLoading = null; throw e; });
+  return amLoading;
+}
+window.playAm = async k => {
+  try {
+    const p = warmAm(); if (!actx) { toast('Thiết bị chưa phát được âm thanh'); return; }
+    await p; const [st, d] = AMS[k];
+    if (amSrc) { try { amSrc.stop(); } catch (e) { } }
+    amSrc = actx.createBufferSource(); amSrc.buffer = amBuf; amSrc.connect(actx.destination); amSrc.start(0, Math.max(0, st - 0.03), d + 0.06);
+  } catch (e) { toast('Chưa tải được âm thanh luyện âm, kiểm tra mạng'); }
+};
 let hsk1Vocab = null;
 async function getHsk1() {
   if (myLevel() === 'HSK1' && content?.vocab?.length) return content.vocab;
@@ -1256,6 +1276,7 @@ async function getHsk1() {
   return hsk1Vocab;
 }
 window.startSound = async kind => {
+  if (kind !== 'py') warmAm();
   if (kind === 'py') { const v = await getHsk1(); if (!v.length) { toast('Chưa có từ vựng HSK1'); return; } startQuiz('Nghe chọn pinyin', buildPyQuiz(v)); return; }
   startQuiz({ tone: 'Luyện thanh điệu', pair: 'Phân biệt âm dễ nhầm', sandhi: 'Luyện biến điệu' }[kind], { tone: buildToneQuiz, pair: buildPairQuiz, sandhi: buildSandhiQuiz }[kind]());
 };
