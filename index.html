@@ -265,6 +265,12 @@ a.btn{text-decoration:none}
 .adm-facts{display:flex;gap:14px;flex-wrap:wrap;font-size:15px;margin-top:2px}
 .adm-who{font-size:14px}
 @media (max-width:600px){.adm .btn.zalo{width:100%;justify-content:center}}
+.am-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.am-tones{display:grid;gap:8px}
+.am-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.am-btn{border:2px solid var(--line);background:#fff;border-radius:12px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--olive-d);font-size:18px}
+.am-btn b{font-weight:800}.am-btn small{color:var(--muted);font-size:13px}
+.am-btn:hover,.am-btn:active{border-color:var(--olive);background:var(--sage-l)}
 .intro-list{margin:8px 0 0;padding-left:18px;line-height:1.7}
 .hz-line{font-family:'LXGW WenKai','KaiTi',serif;font-size:18px}
 </style>
@@ -498,7 +504,65 @@ function parseSite(sheets) {
   if (sheets.CamNhan) site.reviews = sheetToObjects(sheets.CamNhan).items.filter(r => r['Nội dung']).map(r => ({ name: r['Tên học viên'] || '', course: r['Khóa học'] || '', text: r['Nội dung'] }));
   return site;
 }
-if (typeof module !== 'undefined') module.exports = { publicVocab, parseSite, reshuffle, parseContent, lessonNum, toneVariants, vocabQ, matchQ, exampleQ, isRight, correctText, buildLessonQuiz, buildGrammarQuiz, rateCard, dueWords, EXT };
+
+/* ===== Luyện âm (HSK1) – file ghi âm của cô trong thư mục am/ ===== */
+const AM = {
+  tone: ['ma', 'ba', 'da', 'tang', 'yi', 'wu', 'shi', 'tong', 'hao', 'ji'],
+  initials: [['b', 'bo1'], ['p', 'po1'], ['m', 'mo1'], ['f', 'fo1'], ['d', 'de1'], ['t', 'te1'], ['n', 'ne1'], ['l', 'le1'], ['g', 'ge1'], ['k', 'ke1'], ['h', 'he1'],
+    ['j', 'ji1'], ['q', 'qi1'], ['x', 'xi1'], ['zh', 'zhi1'], ['ch', 'chi1'], ['sh', 'shi1'], ['r', 'ri4'], ['z', 'zi1'], ['c', 'ci1'], ['s', 'si1']],
+  finals: [['a', 'a1'], ['o', 'o1'], ['e', 'e1'], ['i', 'yi1'], ['u', 'wu1'], ['ü', 'yu1'], ['ai', 'ai1'], ['ei', 'ei1'], ['ao', 'ao1'], ['ou', 'ou1'], ['an', 'an1'], ['en', 'en1'],
+    ['ang', 'ang1'], ['eng', 'eng1'], ['ong', 'hong1'], ['er', 'er2'], ['ia', 'ya1'], ['ie', 'ye1'], ['iao', 'yao1'], ['iu (iou)', 'you1'], ['ian', 'yan1'], ['in', 'yin1'],
+    ['iang', 'yang1'], ['ing', 'ying1'], ['iong', 'yong1'], ['ua', 'wa1'], ['uo', 'wo1'], ['uai', 'wai1'], ['ui (uei)', 'wei1'], ['uan', 'wan1'], ['un (uen)', 'wen1'],
+    ['uang', 'wang1'], ['ueng', 'weng1'], ['üe', 'yue1'], ['üan', 'yuan1'], ['ün', 'yun1']],
+  pairs: [['b / p', 'ba1 pa1'], ['b / p', 'bo1 po1'], ['d / t', 'du4 tu4'], ['d / t', 'de1 te1'], ['g / k', 'gu1 ku1'], ['g / k', 'ge1 ke1'], ['h / f', 'hu1 fu1'],
+    ['l / n', 'lao3 nao3'], ['l / n', 'le1 ne1'], ['l / r', 'lu4 ru4'], ['z / zh', 'zao3 zhao3'], ['z / zh', 'zi1 zhi1'], ['c / ch', 'cu1 chu1'], ['c / ch', 'ci1 chi1'],
+    ['s / sh', 'san1 shan1'], ['s / sh', 'si1 shi1'], ['z / c / s', 'zi4 ci4 si4'], ['j / q / x', 'ji1 qi1 xi1'], ['zh / ch / sh', 'zhi1 chi1 shi1'],
+    ['j / zh', 'ji1 zhi1'], ['q / ch', 'qi1 chi1'], ['x / sh', 'xi1 shi1'], ['an / ang', 'fan1 fang1'], ['en / eng', 'fen1 feng1'], ['in / ing', 'xin1 xing1'],
+    ['ian / iang', 'xian1 xiang1'], ['uan / uang', 'chuan2 chuang2'], ['u / ü', 'lu4 lv4'], ['u / ü', 'nu3 nv3'], ['u / ü', 'wu1 yu1'], ['ie / üe', 'xie4 xue4'],
+    ['ian / üan', 'xian1 xuan1'], ['ai / ei', 'mai4 mei4'], ['ai / ei', 'ai1 ei1'], ['ou / uo', 'dou1 duo1'], ['e / o', 'e1 o1'], ['ao / ou', 'ao1 ou1'], ['an / en', 'an1 en1']],
+  sandhi: [
+    ['不是', 'bú shì', 'bù shì', '不 + thanh 4 → bú'], ['不去', 'bú qù', 'bù qù', '不 + thanh 4 → bú'], ['不对', 'bú duì', 'bù duì', '不 + thanh 4 → bú'], ['不要', 'bú yào', 'bù yào', '不 + thanh 4 → bú'],
+    ['不好', 'bù hǎo', 'bú hǎo', '不 + thanh 1, 2, 3 → giữ bù'], ['不忙', 'bù máng', 'bú máng', '不 + thanh 1, 2, 3 → giữ bù'], ['不吃', 'bù chī', 'bú chī', '不 + thanh 1, 2, 3 → giữ bù'],
+    ['一个', 'yí ge', 'yì ge', '一 + thanh 4 (kể cả 个 vốn là gè) → yí'], ['一样', 'yíyàng', 'yìyàng', '一 + thanh 4 → yí'], ['一下', 'yíxià', 'yìxià', '一 + thanh 4 → yí'],
+    ['一天', 'yì tiān', 'yí tiān', '一 + thanh 1, 2, 3 → yì'], ['一年', 'yì nián', 'yí nián', '一 + thanh 1, 2, 3 → yì'], ['一起', 'yìqǐ', 'yíqǐ', '一 + thanh 1, 2, 3 → yì'],
+    ['第一', 'dì yī', 'dì yì', '一 đứng một mình, ở cuối hoặc chỉ số thứ tự → giữ yī'], ['十一', 'shíyī', 'shíyì', '一 ở cuối từ → giữ yī'], ['一月', 'yī yuè', 'yí yuè', '一 chỉ số thứ tự (tháng Một) → giữ yī'],
+    ['你好', 'ní hǎo', 'nǐ hǎo', 'Hai thanh 3 đi liền → thanh 3 thứ nhất đọc thành thanh 2'], ['很好', 'hén hǎo', 'hěn hǎo', 'Hai thanh 3 đi liền → thanh 3 thứ nhất đọc thành thanh 2'],
+    ['可以', 'kéyǐ', 'kěyǐ', 'Hai thanh 3 đi liền → thanh 3 thứ nhất đọc thành thanh 2'], ['水果', 'shuíguǒ', 'shuǐguǒ', 'Hai thanh 3 đi liền → thanh 3 thứ nhất đọc thành thanh 2'],
+    ['我想', 'wó xiǎng', 'wǒ xiǎng', 'Hai thanh 3 đi liền → thanh 3 thứ nhất đọc thành thanh 2'], ['老师', 'lǎoshī', 'láoshī', 'Thanh 3 + thanh 1 → không biến điệu']]
+};
+AM.all = [...new Set([...AM.tone.flatMap(b => [1, 2, 3, 4].map(t => b + t)), ...AM.initials.map(x => x[1]), ...AM.finals.map(x => x[1]), ...AM.pairs.flatMap(x => x[1].split(' '))])];
+const TM = { a: 'āáǎà', e: 'ēéěè', i: 'īíǐì', o: 'ōóǒò', u: 'ūúǔù', v: 'ǖǘǚǜ' };
+function markPy(k) {
+  const t = +k.slice(-1), b = k.slice(0, -1);
+  let i = b.search(/[ae]/); if (i < 0) i = b.indexOf('ou'); if (i < 0) i = Math.max(...[...'aeiouv'].map(c => b.lastIndexOf(c)));
+  return (t ? b.slice(0, i) + TM[b[i]][t - 1] + b.slice(i + 1) : b).replace(/v/g, 'ü');
+}
+function amQ(key, opts, label, prompt, expl) {
+  const o = shuffle(opts.map(markPy)); return { type: 'listen', au: key, say: markPy(key), label, prompt, opts: o, a: o.indexOf(markPy(key)), expl: expl || '' };
+}
+function buildToneQuiz(n = 10) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const useSet = Math.random() < .7, key = useSet ? shuffle(AM.tone)[0] + (1 + Math.floor(Math.random() * 4)) : shuffle(AM.all.filter(k => !AM.tone.some(b => k.slice(0, -1) === b)))[0];
+    const b = key.slice(0, -1);
+    out.push(amQ(key, [1, 2, 3, 4].map(t => b + t), 'Nghe chọn thanh điệu', 'Nghe và chọn đúng thanh điệu.'));
+  }
+  return out;
+}
+function buildPairQuiz(n = 10) {
+  return shuffle(AM.pairs).slice(0, n).map(([lab, ks]) => { const k = ks.split(' '), key = shuffle(k)[0];
+    return amQ(key, k, 'Phân biệt âm dễ nhầm', `Nghe và chọn âm đúng (${lab}).`, `Phân biệt ${lab}.`); });
+}
+function buildPyQuiz(vocab, n = 10) {
+  const ok = vocab.filter(v => !/[\s·]/.test(v.p) && toneVariants(v.p).length >= 3 && [...v.h].length <= 3);
+  return shuffle(ok).slice(0, n).map(v => { const o = shuffle([v.p, ...toneVariants(v.p)]);
+    return { type: 'listen', say: v.h, label: 'Nghe chọn pinyin', prompt: 'Nghe từ và chọn pinyin đúng.', opts: o, a: o.indexOf(v.p), expl: `${v.h} – ${v.m}` }; });
+}
+function buildSandhiQuiz(n = 10) {
+  return shuffle(AM.sandhi).slice(0, n).map(([h, right, wrong, rule]) => { const o = shuffle([right, wrong]);
+    return { type: 'listen', say: h, label: 'Biến điệu', prompt: `Từ <span class="hz" style="font-size:26px">${esc(h)}</span> thực tế đọc là gì?`, opts: o, a: o.indexOf(right), expl: rule }; });
+}
+if (typeof module !== 'undefined') module.exports = { AM, markPy, buildToneQuiz, buildPairQuiz, buildPyQuiz, buildSandhiQuiz, publicVocab, parseSite, reshuffle, parseContent, lessonNum, toneVariants, vocabQ, matchQ, exampleQ, isRight, correctText, buildLessonQuiz, buildGrammarQuiz, rateCard, dueWords, EXT };
 
 </script>
 <script type="module">
@@ -685,10 +749,10 @@ const HERO = `<svg class="forest" viewBox="0 0 600 160" preserveAspectRatio="xMa
 const TIPS = ['Ôn flashcard 10 phút mỗi ngày hiệu quả hơn học dồn 1 tiếng cuối tuần.', 'Đọc to từ mới 3 lần, vừa đọc vừa vẽ thanh điệu lên không trung.', 'Từ nào sai 2 lần, hãy tự đặt một câu với từ đó.', 'Nghe trước, nhìn chữ sau: tai quen âm thì nhớ chữ nhanh hơn.'];
 
 /* ====== Khung ====== */
-const NAV_G = [['intro', 'Trang chủ', 'home'], ['review', 'Ôn từ vựng', 'cards']];
-const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['exam', 'Thi thử', 'clock'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat']];
-const NAV_T = [['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
-window.go = p => { if (p === 'login') return login(); stopSpeed(); S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
+const NAV_G = [['intro', 'Trang chủ', 'home'], ['review', 'Ôn từ vựng', 'cards'], ['sound', 'Luyện âm', 'speak']];
+const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['sound', 'Luyện âm', 'speak'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['exam', 'Thi thử', 'clock'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat']];
+const NAV_T = [['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['sound', 'Luyện âm', 'speak'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
+window.go = p => { if (p === 'login') return login(); stopSpeed(); stopRec(); S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
 function render() {
   shell(true);
   const items = isTeacher ? NAV_T : isGuest ? NAV_G : NAV_S;
@@ -703,7 +767,7 @@ function render() {
     <div class="hero-box">${new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })}
     ${!isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><select class="inline sm" onchange="setMine('level',this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${myLevel() === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đã học đến</span><select class="inline sm" onchange="setMine('lesson',this.value)">${lsOpts(maxLs(myLevel()), myLesson())}</select></div>` : ''}
     ${isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><span>Xem như học viên</span><select class="inline sm" onchange="setTeacherLevel(this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${S.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đến</span><select class="inline sm" onchange="S.lesson=+this.value;render()">${lsOpts(maxLs(S.level), S.lesson)}</select></div>` : ''}</div>`;
-  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
+  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam', 'sound'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
   rv();
 }
 window.render = render; window.S = S;
@@ -906,7 +970,7 @@ function vQuiz() {
 function vQuestion(q, a, done) {
   let body = '';
   if (q.type === 'mc' || q.type === 'listen') {
-    body = (q.type === 'listen' ? `<button class="btn gold" style="margin-bottom:12px" onclick="speak('${esc(q.say)}')">${ic('speak')}Nghe</button>` : '')
+    body = (q.type === 'listen' ? `<button class="btn gold" style="margin-bottom:12px" onclick="${q.au ? `playAm('${q.au}')` : `speak('${esc(q.say)}')`}">${ic('speak')}Nghe lại</button>` : '')
       + `<div class="opts">${q.opts.map((o, i) => { let c = a === i ? 'sel' : ''; if (done) { if (i === q.a) c = 'right'; else if (a === i) c = 'wrong'; }
         return `<button class="opt ${c} ${q.hzOpts ? 'hz hzo' : ''}" onclick="setAns(${i})">${esc(o)}</button>`; }).join('')}</div>`;
   } else if (q.type === 'match') {
@@ -933,7 +997,9 @@ function vQuestion(q, a, done) {
   return `<div class="q"><div class="q-h"><span class="q-t">${esc(q.label)}</span></div><div class="q-prompt">${prompt}</div>${body}${fb}${rp}</div>`;
 }
 function afterRender() {
-  const z = S.quiz; if (!z || z.done) return; const q = z.qs[z.i]; if (q.type !== 'write' || z.checked) return;
+  const z = S.quiz; if (!z || z.done) return; const q = z.qs[z.i];
+  if (q.type === 'listen' && !z.checked && z.played !== z.i) { z.played = z.i; setTimeout(() => q.au ? playAm(q.au) : speak(q.say), 250); return; }
+  if (q.type !== 'write' || z.checked) return;
   if (!window.HanziWriter) { $('#wmsg').textContent = 'Chưa tải được công cụ viết chữ, kiểm tra mạng.'; return; }
   let doneN = 0, mistakes = 0;
   document.querySelectorAll('[data-write]').forEach(el => {
@@ -1178,7 +1244,75 @@ window.saveContent = async () => {
   } catch (e) { toast('Chưa lưu được: ' + e.code); }
 };
 
-const VIEWS = { intro: vIntro, exam: vExam, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
+
+/* ====== Luyện âm ====== */
+let amAudio = null;
+window.playAm = k => { try { if (amAudio) amAudio.pause(); amAudio = new Audio('am/' + k + '.mp3'); amAudio.play().catch(() => toast('Chưa phát được âm thanh, kiểm tra mạng hoặc âm lượng')); } catch (e) { toast('Thiết bị chưa phát được âm thanh'); } };
+let hsk1Vocab = null;
+async function getHsk1() {
+  if (myLevel() === 'HSK1' && content?.vocab?.length) return content.vocab;
+  if (hsk1Vocab) return hsk1Vocab;
+  try { const s = await getDoc(doc(db, isGuest ? 'public' : 'content', 'HSK1')); hsk1Vocab = s.exists() ? s.data().vocab || [] : []; } catch (e) { hsk1Vocab = []; }
+  return hsk1Vocab;
+}
+window.startSound = async kind => {
+  if (kind === 'py') { const v = await getHsk1(); if (!v.length) { toast('Chưa có từ vựng HSK1'); return; } startQuiz('Nghe chọn pinyin', buildPyQuiz(v)); return; }
+  startQuiz({ tone: 'Luyện thanh điệu', pair: 'Phân biệt âm dễ nhầm', sandhi: 'Luyện biến điệu' }[kind], { tone: buildToneQuiz, pair: buildPairQuiz, sandhi: buildSandhiQuiz }[kind]());
+};
+window.setSmode = m => { stopRec(); S.smode = m; rv(); };
+const amBtn = (k, label, sub) => `<button class="am-btn" onclick="playAm('${k}')"><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+function vSound() {
+  const m = S.smode || 'table';
+  const tabs = [['table', 'Bảng âm'], ['quiz', 'Luyện nghe'], ['sandhi', 'Biến điệu'], ['echo', 'Đọc theo']];
+  let body = '';
+  if (m === 'table') body = `<section class="card"><div class="card-h">${leaf}<h3>Thanh điệu</h3></div>
+      <p class="muted" style="margin-top:-6px">Thanh 1 cao và đều · Thanh 2 đi lên · Thanh 3 xuống thấp rồi lên · Thanh 4 đi xuống mạnh. Chạm vào âm để nghe cô đọc.</p>
+      <div class="am-tones">${AM.tone.map(b => `<div class="am-row">${[1, 2, 3, 4].map(t => amBtn(b + t, markPy(b + t))).join('')}</div>`).join('')}</div></section>
+    <section class="card" style="margin-top:16px"><div class="card-h">${leaf}<h3>Âm đầu (thanh mẫu)</h3></div><div class="am-grid">${AM.initials.map(([l, k]) => amBtn(k, l, markPy(k))).join('')}</div></section>
+    <section class="card" style="margin-top:16px"><div class="card-h">${leaf}<h3>Vần (vận mẫu)</h3></div>
+      <p class="muted" style="margin-top:-6px">Vần đứng một mình viết thêm y/w (i → yi, ia → ya, u → wu…). Vần ong không đứng một mình nên đọc mẫu qua hōng.</p>
+      <div class="am-grid">${AM.finals.map(([l, k]) => amBtn(k, l, markPy(k))).join('')}</div></section>`;
+  else if (m === 'quiz') body = `<div class="grid g3">
+      <section class="card"><div class="card-h">${leaf}<h3>Nghe chọn thanh điệu</h3></div><p class="muted">Nghe cô đọc một âm, chọn đúng thanh 1, 2, 3 hay 4.</p><button class="btn" onclick="startSound('tone')">${ic('speak')}Bắt đầu</button></section>
+      <section class="card"><div class="card-h">${leaf}<h3>Âm dễ nhầm</h3></div><p class="muted">b/p, zh/z, j/q/x, an/ang, u/ü… Nghe và chọn đúng âm.</p><button class="btn" onclick="startSound('pair')">${ic('speak')}Bắt đầu</button></section>
+      <section class="card"><div class="card-h">${leaf}<h3>Nghe chọn pinyin</h3></div><p class="muted">Nghe một từ HSK1 (giọng đọc máy) rồi chọn pinyin có thanh điệu đúng.</p><button class="btn" onclick="startSound('py')">${ic('speak')}Bắt đầu</button></section></div>`;
+  else if (m === 'sandhi') body = `<section class="card"><div class="card-h">${leaf}<h3>Quy tắc biến điệu</h3></div>
+      <ul class="intro-list"><li><b>不 bù</b>: trước thanh 4 đọc thành <b>bú</b> (不是 bú shì); trước thanh 1, 2, 3 giữ <b>bù</b>.</li>
+      <li><b>一 yī</b>: trước thanh 4 đọc thành <b>yí</b> (一个 yí ge); trước thanh 1, 2, 3 đọc thành <b>yì</b> (一天 yì tiān); đứng một mình, ở cuối từ hoặc chỉ số thứ tự giữ <b>yī</b> (第一, 十一).</li>
+      <li><b>Hai thanh 3 đi liền</b>: thanh 3 thứ nhất đọc thành thanh 2 (你好 ní hǎo). Pinyin trong sách vẫn viết dấu thanh gốc.</li></ul>
+      <button class="btn" style="margin-top:12px" onclick="startSound('sandhi')">${ic('task')}Luyện biến điệu</button></section>`;
+  else body = vEcho();
+  return `<div class="mode-tabs">${tabs.map(([k, l]) => `<button class="${m === k ? 'on' : ''}" onclick="setSmode('${k}')">${l}</button>`).join('')}</div>${body}`;
+}
+/* Đọc theo: nghe mẫu, ghi âm giọng mình, nghe lại */
+let rec = null, recUrl = null;
+function stopRec() { try { if (rec && rec.state === 'recording') rec.stop(); } catch (e) { } }
+function vEcho() {
+  if (!S.echo) S.echo = shuffle(AM.all)[0];
+  const k = S.echo, on = rec && rec.state === 'recording';
+  return `<section class="card" style="text-align:center"><div class="card-h">${leaf}<h3>Đọc theo cô</h3></div>
+    <p class="muted" style="margin-top:-6px">1. Nghe mẫu · 2. Bấm Ghi âm và đọc theo (tự dừng sau 4 giây) · 3. Nghe lại giọng mình, so với mẫu. Bản ghi chỉ nằm trên máy bạn, không gửi đi đâu.</p>
+    <div class="speed-q" style="font-family:Nunito,sans-serif;font-size:56px">${esc(markPy(k))}</div>
+    <div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap">
+      <button class="btn gold" onclick="playAm('${k}')">${ic('speak')}Nghe mẫu</button>
+      <button class="btn ${on ? 'red' : ''}" onclick="${on ? 'stopRec()' : 'startRec()'}">${on ? 'Dừng ghi' : 'Ghi âm'}</button>
+      <button class="btn ghost" ${recUrl ? '' : 'disabled'} onclick="playMine()">Nghe giọng mình</button></div>
+    <div style="margin-top:14px"><button class="btn ghost sm" onclick="nextEcho()">Âm khác</button></div></section>`;
+}
+window.nextEcho = () => { stopRec(); recUrl = null; S.echo = shuffle(AM.all.filter(x => x !== S.echo))[0]; rv(); playAm(S.echo); };
+window.playMine = () => { if (recUrl) new Audio(recUrl).play(); };
+window.startRec = async () => {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) { toast('Trình duyệt này chưa hỗ trợ ghi âm'); return; }
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true }), chunks = [];
+    rec = new MediaRecorder(st); rec.ondataavailable = e => chunks.push(e.data);
+    rec.onstop = () => { st.getTracks().forEach(t => t.stop()); recUrl = URL.createObjectURL(new Blob(chunks, { type: rec.mimeType })); rv(); playMine(); };
+    rec.start(); rv(); setTimeout(stopRec, 4000);
+  } catch (e) { toast('Chưa có quyền dùng micro. Bạn cho phép micro trong trình duyệt nhé.'); }
+};
+window.stopRec = stopRec;
+
+const VIEWS = { intro: vIntro, exam: vExam, sound: vSound, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
 boot();
 
 </script>
