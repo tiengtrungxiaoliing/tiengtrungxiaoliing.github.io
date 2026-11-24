@@ -259,6 +259,12 @@ a.btn{text-decoration:none}
 .zalo-float{position:fixed;right:18px;bottom:90px;width:58px;height:58px;border-radius:50%;background:#0068FF;color:#fff;font-weight:800;display:grid;place-items:center;text-decoration:none;box-shadow:0 6px 18px rgba(0,104,255,.35);z-index:45;font-size:14px}
 @media (min-width:861px){.zalo-float{bottom:24px}}
 .teacher-photo{width:100%;max-width:220px;border-radius:16px;display:block;margin-bottom:10px}
+.adm{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px;border-left:5px solid var(--olive)}
+.adm-main{flex:1;min-width:220px;display:grid;gap:6px}
+.adm-name{font-size:18px;color:var(--olive-d)}
+.adm-facts{display:flex;gap:14px;flex-wrap:wrap;font-size:15px;margin-top:2px}
+.adm-who{font-size:14px}
+@media (max-width:600px){.adm .btn.zalo{width:100%;justify-content:center}}
 .intro-list{margin:8px 0 0;padding-left:18px;line-height:1.7}
 .hz-line{font-family:'LXGW WenKai','KaiTi',serif;font-size:18px}
 </style>
@@ -534,7 +540,10 @@ window.speak = speak;
 const initials = n => String(n || '?').trim().split(/\s+/).map(x => x[0]).slice(-2).join('').toUpperCase();
 const myLesson = () => isTeacher ? S.lesson : (profile?.lesson || 1);
 const myLevel = () => isTeacher ? S.level : (profile?.level || 'HSK1');
-const learnedVocab = () => (content?.vocab || []).filter(v => v.ls <= myLesson() || (v.ls === EXT && myLesson() >= 15));
+const LESSONS = { HSK1: 15, HSK2: 15, HSK3: 18 };
+const maxLs = lv => LESSONS[lv] || 15;
+const lsOpts = (n, cur) => Array.from({ length: n }, (_, i) => `<option value="${i + 1}" ${cur === i + 1 ? 'selected' : ''}>Bài ${i + 1}</option>`).join('');
+const learnedVocab = () => (content?.vocab || []).filter(v => v.ls <= myLesson() || (v.ls === EXT && myLesson() >= maxLs(myLevel())));
 
 
 /* ====== Lưu dữ liệu (gom lại để tiết kiệm lượt ghi) ====== */
@@ -610,7 +619,7 @@ async function boot() {
       if (!isTeacher) {
         const [a, b] = await Promise.all([getDoc(doc(db, 'users', u.uid, 'data', 'srs')), getDoc(doc(db, 'users', u.uid, 'data', 'stats'))]);
         srs = a.exists() ? a.data().map || {} : {}; stats = b.exists() ? b.data() : {};
-      } else { S.level = profile.level || 'HSK1'; S.lesson = 15; }
+      } else { S.level = profile.level || 'HSK1'; S.lesson = maxLs(S.level); }
       await loadContent(); await loadBoard();
       S.page = isTeacher ? 'students' : 'home'; render();
     } catch (e) { console.error(e); showGate('Có lỗi khi tải dữ liệu', esc(e.message), true); }
@@ -676,9 +685,9 @@ const HERO = `<svg class="forest" viewBox="0 0 600 160" preserveAspectRatio="xMa
 const TIPS = ['Ôn flashcard 10 phút mỗi ngày hiệu quả hơn học dồn 1 tiếng cuối tuần.', 'Đọc to từ mới 3 lần, vừa đọc vừa vẽ thanh điệu lên không trung.', 'Từ nào sai 2 lần, hãy tự đặt một câu với từ đó.', 'Nghe trước, nhìn chữ sau: tai quen âm thì nhớ chữ nhanh hơn.'];
 
 /* ====== Khung ====== */
-const NAV_G = [['intro', 'Tuyển sinh', 'star'], ['review', 'Ôn từ vựng', 'cards']];
-const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat'], ['intro', 'Tuyển sinh', 'star']];
-const NAV_T = [['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy']];
+const NAV_G = [['intro', 'Trang chủ', 'home'], ['review', 'Ôn từ vựng', 'cards']];
+const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['exam', 'Thi thử', 'clock'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat']];
+const NAV_T = [['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['practice', 'Luyện theo bài', 'task'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
 window.go = p => { if (p === 'login') return login(); stopSpeed(); S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
 function render() {
   shell(true);
@@ -692,16 +701,18 @@ function render() {
   const sub = isTeacher ? 'Quản lý học viên và nội dung ôn luyện' : isGuest ? (profile.pending ? 'Tài khoản đang chờ cô duyệt. Trong lúc chờ, bạn ôn từ vựng miễn phí nhé.' : 'Ôn từ vựng HSK miễn phí. Học viên của lớp đăng nhập để lưu tiến độ và làm bài luyện.') : `Phần Ôn tập lấy từ vựng Bài 1 – ${myLesson()} · chuỗi ${currentStreak(stats)} ngày học`;
   $('#hero').innerHTML = HERO + `<div class="hero-text"><h1>${leaf} Chào ${esc(name)}!</h1><p>${sub}</p></div>
     <div class="hero-box">${new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })}
-    ${!isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><select class="inline sm" onchange="setMine('level',this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${myLevel() === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đã học đến</span><select class="inline sm" onchange="setMine('lesson',this.value)">${Array.from({ length: 15 }, (_, i) => `<option value="${i + 1}" ${myLesson() === i + 1 ? 'selected' : ''}>Bài ${i + 1}</option>`).join('')}</select></div>` : ''}
-    ${isTeacher ? `<div class="row" style="gap:6px"><span>Xem như học viên đến</span><select class="inline sm" onchange="S.lesson=+this.value;render()">${Array.from({ length: 15 }, (_, i) => `<option value="${i + 1}" ${S.lesson === i + 1 ? 'selected' : ''}>Bài ${i + 1}</option>`).join('')}</select></div>` : ''}</div>`;
-  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
+    ${!isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><select class="inline sm" onchange="setMine('level',this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${myLevel() === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đã học đến</span><select class="inline sm" onchange="setMine('lesson',this.value)">${lsOpts(maxLs(myLevel()), myLesson())}</select></div>` : ''}
+    ${isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><span>Xem như học viên</span><select class="inline sm" onchange="setTeacherLevel(this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${S.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đến</span><select class="inline sm" onchange="S.lesson=+this.value;render()">${lsOpts(maxLs(S.level), S.lesson)}</select></div>` : ''}</div>`;
+  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
   rv();
 }
 window.render = render; window.S = S;
+window.setTeacherLevel = async lv => { S.level = lv; S.lesson = maxLs(lv); S.queue = []; S.flashDone = false; S.pg = null; parsed = null; await loadContent(); await loadBoard(); render(); };
 window.setMine = async (field, val) => {
   const v = { [field]: field === 'lesson' ? +val : val };
+  if (field === 'level' && myLesson() > maxLs(val)) v.lesson = maxLs(val);
   if (isGuest) {
-    LS.set(field, v[field]); Object.assign(profile, v);
+    Object.keys(v).forEach(k => LS.set(k, v[k])); Object.assign(profile, v);
     if (field === 'level') { await loadContent(); }
     S.queue = []; S.flashDone = false; S.pg = null; render(); return;
   }
@@ -719,7 +730,7 @@ function vHome() {
   const lv = learnedVocab(), due = dueWords(lv, srs, Date.now(), 0).length, fresh = lv.filter(v => !srs[v.k]).length;
   const known = lv.filter(v => (srs[v.k]?.b || 0) >= 2).length;
   const w = lv.length ? lv[new Date().getDate() % lv.length] : null;
-  return `${due ? `<div class="banner">${ic('clock')}<div>Bạn có <b>${due} từ</b> đến hạn ôn hôm nay.</div><button class="btn sm" style="margin-left:auto" onclick="S.mode='flash';go('review')">Ôn ngay</button></div>` : ''}
+  return `${admBlock()}${due ? `<div class="banner">${ic('clock')}<div>Bạn có <b>${due} từ</b> đến hạn ôn hôm nay.</div><button class="btn sm" style="margin-left:auto" onclick="S.mode='flash';go('review')">Ôn ngay</button></div>` : ''}
   <div class="grid g3">
     <section class="card"><div class="card-h">${leaf}<h3>Hôm nay</h3></div>
       <div class="grid g2" style="gap:10px">
@@ -934,26 +945,28 @@ function afterRender() {
 
 /* ====== Trang tuyển sinh (ai cũng xem được) ====== */
 const zaloLink = v => /^https?:/.test(v || '') ? v : 'https://zalo.me/' + String(v || '').replace(/\D/g, '');
-function vIntro() {
+function admBlock() {
   const st = site && (site.classes?.length || Object.keys(site.info || {}).length) ? site : DEFAULT_SITE, info = st.info || {};
-  const zalo = info['Zalo'] || info['Số điện thoại'], phone = info['Số điện thoại'];
+  const open = (st.classes || []).filter(c => !/đủ|đóng/i.test(c['Trạng thái'] || ''));
+  if (!open.length) return '';
+  const zalo = info['Zalo'] || info['Số điện thoại'];
   const lines = Object.keys(info).filter(k => /^Giới thiệu/.test(k)).sort().map(k => info[k]).filter(Boolean);
-  const F = ['Cấp độ', 'Khai giảng', 'Lịch học', 'Số buổi', 'Sĩ số', 'Hình thức', 'Ghi chú'];
-  const contact = `<div class="row" style="gap:10px;flex-wrap:wrap">${zalo ? `<a class="btn zalo" href="${esc(zaloLink(zalo))}" target="_blank" rel="noopener">${ic('chat')}Nhắn Zalo cho cô</a>` : ''}${phone ? `<a class="btn ghost" href="tel:${esc(phone.replace(/\s/g, ''))}">${ic('phone')}${esc(phone)}</a>` : ''}</div>`;
-  return `<div class="grid g3">
-    <section class="card span2"><div class="card-h">${leaf}<h3>Lớp sắp khai giảng</h3></div>
-      ${(st.classes || []).map(c => `<div class="class-card"><div class="row"><b class="grow" style="font-size:19px;color:var(--olive-d)">${esc(c['Tên lớp'])}</b>${c['Trạng thái'] ? `<span class="pill ${/đủ|đóng/i.test(c['Trạng thái']) ? 'bad' : 'ok'}">${esc(c['Trạng thái'])}</span>` : ''}</div>
-        <div class="class-grid">${F.filter(f => c[f]).map(f => `<div><small>${f}</small><b>${esc(c[f])}</b></div>`).join('')}</div></div>`).join('') || '<p class="muted">Thông tin lớp mới đang được cập nhật.</p>'}
-      <p class="muted" style="margin:14px 0 8px">Quan tâm lớp học? Nhắn Zalo hoặc gọi cho cô để được tư vấn và xếp lớp.</p>${contact}</section>
-    <section class="card"><div class="card-h">${leaf}<h3>Giới thiệu</h3></div>
-      ${info['Ảnh'] ? `<img src="${esc(info['Ảnh'])}" alt="" class="teacher-photo">` : ''}
-      <b style="font-size:18px;color:var(--olive-d)">${esc(info['Tên hiển thị'] || 'Cô giáo Xiaoliing')}</b>
-      <ul class="intro-list">${lines.map(l => `<li>${esc(l)}</li>`).join('')}</ul></section>
-    ${(st.reviews || []).length ? `<section class="card span3"><div class="card-h">${leaf}<h3>Cảm nhận học viên</h3></div><div class="grid g3" style="gap:12px">${st.reviews.map(r => `<div class="report"><div>“${esc(r.text)}”</div><div class="muted">— ${esc(r.name)}${r.course ? ' · ' + esc(r.course) : ''}</div></div>`).join('')}</div></section>` : ''}
-    <section class="card span3"><div class="card-h">${leaf}<h3>Ôn từ vựng miễn phí</h3></div>
-      <p class="muted">Flashcard, ghép thẻ, thử thách 60 giây và luyện viết chữ cho HSK1–HSK3. ${isGuest ? (profile.pending ? 'Tài khoản của bạn đang chờ cô duyệt.' : 'Học viên của lớp đăng nhập để lưu tiến độ, làm bài luyện ngữ pháp và thi thử.') : ''}</p>
-      <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" onclick="go('review')">${ic('cards')}Bắt đầu ôn từ vựng</button>${isGuest && !me ? `<button class="btn ghost" onclick="login()">${ic('user')}Đăng nhập học viên</button>` : ''}</div></section>
-  </div>${zalo ? `<a class="zalo-float" href="${esc(zaloLink(zalo))}" target="_blank" rel="noopener" title="Nhắn Zalo">Zalo</a>` : ''}`;
+  const who = [info['Tên hiển thị'] || 'Cô giáo Xiaoliing', ...lines].join(' · ');
+  return `<section class="card adm"><div class="adm-main">${open.map(c => `<div><b class="adm-name">${esc(c['Tên lớp'])}</b>${c['Trạng thái'] ? ` <span class="pill ok">${esc(c['Trạng thái'])}</span>` : ''}
+      <div class="adm-facts">${['Khai giảng', 'Sĩ số'].filter(f => c[f]).map(f => `<span>${f}: <b>${esc(c[f])}</b></span>`).join('')}</div></div>`).join('')}
+      <div class="adm-who muted">${esc(who)}</div></div>
+    ${zalo ? `<a class="btn zalo" href="${esc(zaloLink(zalo))}" target="_blank" rel="noopener">${ic('chat')}Nhắn Zalo đăng ký</a>` : ''}</section>`;
+}
+function vIntro() {
+  return `${admBlock()}<section class="card"><div class="card-h">${leaf}<h3>Ôn từ vựng miễn phí</h3></div>
+      <p class="muted">Flashcard, ghép thẻ, thử thách 60 giây và luyện viết chữ cho HSK1–HSK3. ${profile.pending ? 'Tài khoản của bạn đang chờ cô duyệt.' : 'Học viên của lớp đăng nhập để lưu tiến độ và làm bài luyện ngữ pháp.'}</p>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" onclick="go('review')">${ic('cards')}Bắt đầu ôn từ vựng</button>${!me ? `<button class="btn ghost" onclick="login()">${ic('user')}Đăng nhập học viên</button>` : ''}</div></section>`;
+}
+function vExam() {
+  return `<section class="card" style="text-align:center;padding:36px 20px"><div class="card-h" style="justify-content:center">${leaf}<h3>Thi thử HSK</h3></div>
+    <p style="font-size:18px;margin:6px 0">Nội dung sẽ được cập nhật sau.</p>
+    <p class="muted">Cô đang chuẩn bị đề thi thử theo chuẩn HSK 3.0 cho HSK1–HSK3. Trong lúc chờ, bạn ôn từ vựng và luyện ngữ pháp nhé.</p>
+    <div class="row" style="gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="go('review')">${ic('cards')}Ôn tập</button><button class="btn ghost" onclick="go('grammar')">${ic('book')}Ngữ pháp</button></div></section>`;
 }
 
 /* ====== Báo lỗi câu hỏi ====== */
@@ -1107,7 +1120,7 @@ function vStudents() {
     ${students.map(u => `<tr><td><input class="cell-in" id="n_${u.id}" value="${esc(u.name)}"><div class="muted" style="font-size:12px">${esc(u.email)}</div></td>
       <td><select class="inline sm" id="a_${u.id}"><option value="1" ${u.approved ? 'selected' : ''}>Đã duyệt</option><option value="0" ${u.approved ? '' : 'selected'}>Chờ duyệt / Khóa</option></select></td>
       <td><select class="inline sm" id="l_${u.id}">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${u.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-      <td><select class="inline sm" id="s_${u.id}">${Array.from({ length: 15 }, (_, i) => `<option value="${i + 1}" ${u.lesson === i + 1 ? 'selected' : ''}>Bài ${i + 1}</option>`).join('')}</select></td>
+      <td><select class="inline sm" id="s_${u.id}">${lsOpts(maxLs(u.level), u.lesson)}</select></td>
       <td><b>${u.pts}</b></td><td style="white-space:nowrap"><button class="btn sm" onclick="saveStudent('${u.id}')">Lưu</button> <button class="btn ghost sm" onclick="studentDetail('${u.id}')">Chi tiết</button></td></tr>`).join('')}</table></div></section>
     <div id="detail"></div>`;
 }
@@ -1165,7 +1178,7 @@ window.saveContent = async () => {
   } catch (e) { toast('Chưa lưu được: ' + e.code); }
 };
 
-const VIEWS = { intro: vIntro, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
+const VIEWS = { intro: vIntro, exam: vExam, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
 boot();
 
 </script>
