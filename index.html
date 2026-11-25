@@ -302,6 +302,26 @@ a.btn{text-decoration:none}
 .quick-card .grow{flex:1 1 170px;min-width:0}.install-card .grow{flex:1 1 200px;min-width:0}.quick-card h3{font-size:19px}.quick-card p{margin:4px 0 0}.quick-mascot{width:64px;height:64px;flex-shrink:0}
 .install-card{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.install-card h3{font-size:17px}.install-card p{margin:4px 0 0}
 tr.warn-row td{background:#FBF0D6}
+.page-hero>.grow,.path-hero>.grow,.ph-card>.grow,.adm-strip>.grow{flex:1;min-width:0}
+.page-hero{background:var(--olive);border-radius:20px;padding:18px 22px;color:#F6E7C6;display:flex;gap:14px;align-items:center;margin-bottom:14px}
+.page-hero h2{color:#fff;font-size:24px;line-height:1.25;margin:4px 0}.page-hero p{color:#E4E9CF;margin:0 0 10px}
+.page-mascot{width:120px;height:120px;flex-shrink:0}
+.hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.hero-chips span{background:rgba(0,0,0,.16);border-radius:99px;padding:5px 12px;font-size:13px}
+.hub{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.hub-tile{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:4px;color:var(--ink);box-shadow:var(--shadow)}
+.hub-tile .ico{color:var(--olive);width:26px;height:26px}.hub-tile b{font-size:16px;color:var(--olive-d)}.hub-tile small{color:var(--muted);font-size:12.5px}
+.hub-tile:hover{border-color:var(--olive)}.hub-tile.lock{background:#F3EBD7}.hub-tile.lock .ico,.hub-tile.lock b{color:#8F8670}
+.adm-strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-left:5px solid var(--olive);margin-bottom:4px}
+.mode-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.mode-grid button{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--olive-d);font-weight:700;font-size:14px}
+.mode-grid button.on{border:2px solid var(--olive);background:var(--sage-l)}.mode-grid .ico{color:var(--olive)}
+.lock-card{text-align:center;padding:26px 18px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.lock-card h3{font-size:20px}.lock-card p{max-width:460px;margin:0 0 10px}.lock-mascot{width:110px;height:110px}
+.code-in{font:inherit;padding:10px 12px;border:2px solid var(--line);border-radius:12px;min-width:230px;text-transform:uppercase}
+.code-msg{color:var(--red);font-size:13px;min-height:18px;margin-top:6px}
+tr.dim-row td{color:#9A9179}
+.hero{min-height:0;padding:14px 24px}.hero h1{font-size:22px}.hero .forest{opacity:.55}.hero p .pill{margin-right:6px}
+@media (max-width:860px){.page-hero{padding:14px 16px}.page-hero h2{font-size:20px}.page-mascot{width:84px;height:84px}.mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hub{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .intro-list{margin:8px 0 0;padding-left:18px;line-height:1.7}
 .hz-line{font-family:'LXGW WenKai','KaiTi',serif;font-size:18px}
 </style>
@@ -618,7 +638,7 @@ if (typeof module !== 'undefined') module.exports = { buildQuickQuiz, AM, markPy
 /* ===== Xiaoliing – giao diện + Firebase ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, orderBy, limit, Timestamp, deleteField } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 /* ====== CẤU HÌNH – em sẽ điền khi chị gửi ====== */
 const firebaseConfig = {
@@ -629,13 +649,13 @@ const firebaseConfig = {
   messagingSenderId: "53651021603",
   appId: "1:53651021603:web:4842b1bc374621527af696"
 };
-/* teacher detected by Firebase rules */
+/* Giáo viên được nhận diện bằng quy tắc bảo mật Firebase (chỉ giáo viên xem được danh sách mã học viên) */
 /* ============================================== */
 
 const $ = s => document.querySelector(s);
 const view = () => $('#view');
 const S = { page: 'home', mode: 'flash', quiz: null, flipped: false, queue: [], level: 'HSK1', lesson: 1 };
-let auth, db, me = null, profile = null, content = null, srs = {}, stats = {}, board = [], isTeacher = false, isGuest = false, site = null;
+let auth, db, me = null, profile = null, content = null, srs = {}, stats = {}, board = [], isTeacher = false, isGuest = false, isStudent = false, site = null;
 const LS = { get: k => { try { return JSON.parse(localStorage.getItem('xl_' + k)); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem('xl_' + k, JSON.stringify(v)); } catch (e) { } } };
 const DEFAULT_SITE = { classes: [{ 'Tên lớp': 'HSK1 K2', 'Cấp độ': 'HSK1', 'Khai giảng': 'Tháng 01/2027', 'Lịch học': 'Theo lịch rảnh chung của cả lớp', 'Số buổi': '25 buổi', 'Sĩ số': 'Tối đa 7 học viên (còn 5 chỗ)', 'Hình thức': 'Online qua Zoom', 'Trạng thái': 'Đang nhận đăng ký' }],
   info: { 'Tên hiển thị': 'Cô giáo Xiaoliing', 'Giới thiệu 1': 'Cử nhân Ngôn ngữ Trung Quốc – Đại học Hà Nội', 'Giới thiệu 2': 'Chứng chỉ HSK 6 và HSKK Cao cấp', 'Giới thiệu 3': 'Có kinh nghiệm trợ giảng và dạy tiếng Trung online', 'Số điện thoại': '0918178857', 'Zalo': '0918178857' }, reviews: [] };
@@ -686,7 +706,7 @@ const freezeLeft = () => (stats.freezes || []).includes(weekId(today())) ? 0 : 1
 let lastAct = Date.now();
 ['pointerdown', 'keydown', 'touchstart', 'wheel'].forEach(e => addEventListener(e, () => lastAct = Date.now(), { passive: true }));
 function tick() {
-  if (!me || isTeacher || !profile?.approved || document.visibilityState !== 'visible' || Date.now() - lastAct > IDLE) return;
+  if (!me || isTeacher || isGuest || document.visibilityState !== 'visible' || Date.now() - lastAct > IDLE) return;
   const t = today(); stats.mins = stats.mins || {}; const before = stats.mins[t] || 0; stats.mins[t] = before + 15;
   if (before < GOAL && stats.mins[t] >= GOAL) { completeDay(t); toast(`Đủ 10 phút hôm nay! Chuỗi ngày học: ${stats.streak} ngày`); }
   if (Math.floor(stats.mins[t] / 60) !== Math.floor(before / 60)) {
@@ -709,10 +729,11 @@ async function saveAll() {
     await Promise.all([
       setDoc(doc(db, 'users', me.uid, 'data', 'srs'), { map: srs }),
       setDoc(doc(db, 'users', me.uid, 'data', 'stats'), stats),
-      setDoc(doc(db, 'board', me.uid), { name: profile.name, level: profile.level, month: m, pts: cur })]);
+      setDoc(doc(db, 'board', me.uid), { name: profile.name, [PK()]: cur }, { merge: true })]);
   } catch (e) { console.error(e); toast('Chưa lưu được tiến độ, kiểm tra mạng'); }
 }
 window.addEventListener('beforeunload', () => { if (saveTimer) saveAll(); });
+const PK = () => 'p' + month().replace('-', '');
 const monthPts = () => (stats.month === month() ? stats.pts || 0 : 0) + pts;
 
 /* ====== Khởi động ====== */
@@ -722,13 +743,16 @@ async function boot() {
   onAuthStateChanged(auth, async u => {
     me = u; showGate('Đang tải…', '');
     await loadSite();
-    if (!u) { if (sessionStorage.getItem('xl_guest')) await startGuest(false); else showLogin(); return; }
-    isTeacher = (u.email || '').toLowerCase() === TEACHER_EMAIL.toLowerCase();
+    if (!u) { if (sessionStorage.getItem('xl_guest')) await startGuest(); else showLogin(); return; }
     try {
+      isGuest = false;
+      try { await getDocs(query(collection(db, 'codes'), limit(1))); isTeacher = true; } catch (e) { isTeacher = false; }
       const ref = doc(db, 'users', u.uid); let snap = await getDoc(ref);
-      if (!snap.exists()) { await setDoc(ref, { name: u.displayName || u.email, email: u.email, approved: isTeacher, level: 'HSK1', lesson: 1, created: Date.now() }); snap = await getDoc(ref); }
-      profile = snap.data();
-      if (!profile.approved && !isTeacher) { await startGuest(true); return; }
+      if (!snap.exists()) { await setDoc(ref, { name: u.displayName || u.email, email: u.email, approved: false, level: 'HSK1', lesson: 1, created: Date.now() }); snap = await getDoc(ref); }
+      profile = snap.data(); isStudent = isTeacher || !!profile.approved;
+      if (!isStudent && profile.code) {
+        try { const c = await getDoc(doc(db, 'codes', profile.code)); const ex = c.exists() ? expMs(c.data()) : 0; profile.codeExp = ex; isStudent = ex > Date.now(); if (!isStudent) toast('Mã học viên của bạn đã hết hạn. Bạn vẫn dùng được các tính năng miễn phí.'); } catch (e) { }
+      }
       if (!isTeacher) {
         const [a, b] = await Promise.all([getDoc(doc(db, 'users', u.uid, 'data', 'srs')), getDoc(doc(db, 'users', u.uid, 'data', 'stats'))]);
         srs = a.exists() ? a.data().map || {} : {}; stats = b.exists() ? b.data() : {};
@@ -739,20 +763,20 @@ async function boot() {
   });
 }
 async function loadContent() {
-  if (isGuest) {
+  if (!isStudent) {
     try { const s = await getDoc(doc(db, 'public', myLevel())); content = s.exists() ? { vocab: s.data().vocab || [], grammar: [], examples: [], questions: [], sentences: [] } : null; } catch (e) { content = null; }
     return;
   }
   const s = await getDoc(doc(db, 'content', myLevel())); content = s.exists() ? s.data() : null;
 }
 async function loadSite() { try { const s = await getDoc(doc(db, 'public', 'site')); site = s.exists() ? s.data() : null; } catch (e) { site = null; } }
-async function startGuest(pending) {
-  isGuest = true; isTeacher = false;
-  profile = { name: pending ? (me.displayName || 'bạn') : 'bạn', level: LS.get('level') || 'HSK1', lesson: LS.get('lesson') || 1, pending };
+async function startGuest() {
+  isGuest = true; isTeacher = false; isStudent = false;
+  profile = { name: 'bạn', level: LS.get('level') || 'HSK1', lesson: LS.get('lesson') || 1 };
   srs = LS.get('srs') || {}; stats = LS.get('stats') || {};
   await loadContent(); S.page = 'intro'; render();
 }
-async function loadBoard() { try { const s = await getDocs(collection(db, 'board')); board = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(b => b.month === month() && b.level === myLevel()); } catch (e) { board = []; } }
+async function loadBoard() { if (!me) { board = []; return; } try { const k = PK(), s = await getDocs(query(collection(db, 'board'), orderBy(k, 'desc'), limit(20))); board = s.docs.map(d => ({ id: d.id, name: d.data().name, pts: d.data()[k] || 0 })); } catch (e) { console.warn(e); board = []; } }
 
 function shell(on) { document.body.classList.toggle('gated', !on); }
 function showGate(title, body, withOut) {
@@ -762,13 +786,13 @@ function showGate(title, body, withOut) {
 function showLogin() {
   shell(false);
   $('#gate').innerHTML = `<div class="gate-card">${mascot('chao', 'gate-mascot')}<div class="sign"><small>Tiếng Trung</small><b>Xiaoliing</b></div>
-    <h2>Góc ôn luyện</h2><p class="muted">Học viên đăng nhập bằng tài khoản Google (Gmail) để ôn từ vựng, ngữ pháp, luyện âm và lưu tiến độ.</p>
+    <h2>Góc ôn luyện</h2><p class="muted">Đăng nhập miễn phí bằng tài khoản Google (Gmail) để lưu tiến độ, luyện theo bài và lên bảng xếp hạng.</p>
     <button class="btn" onclick="login()">${ic('user')}Đăng nhập bằng Google</button>
     <div class="gate-or">hoặc</div>
     <button class="btn ghost" onclick="enterGuest()">Vào với tư cách khách</button>
-    <p class="muted" style="font-size:12.5px;margin:0">Khách không được lưu tiến độ vào tài khoản và chỉ dùng được Ôn từ vựng, Luyện âm. Bài luyện ngữ pháp, bảng xếp hạng, thi thử dành cho học viên.</p></div>`;
+    <p class="muted" style="font-size:12.5px;margin:0">Khách không lưu tiến độ vào tài khoản, chỉ dùng được Ôn từ vựng và Phòng luyện âm.</p></div>`;
 }
-window.enterGuest = async () => { try { sessionStorage.setItem('xl_guest', '1'); } catch (e) { } showGate('Đang tải…', ''); await startGuest(false); };
+window.enterGuest = async () => { try { sessionStorage.setItem('xl_guest', '1'); } catch (e) { } showGate('Đang tải…', ''); await startGuest(); };
 window.login = async () => {
   const p = new GoogleAuthProvider();
   try { await signInWithPopup(auth, p); }
@@ -804,7 +828,7 @@ const TIPS = ['Ôn flashcard 10 phút mỗi ngày hiệu quả hơn học dồn 
 /* ====== Khung ====== */
 const NAV_G = [['intro', 'Trang chủ', 'home'], ['review', 'Ôn từ vựng', 'cards'], ['path', 'Lộ trình', 'path']];
 const NAV_S = [['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['path', 'Lộ trình', 'path'], ['grammar', 'Ngữ pháp', 'book'], ['rank', 'Bảng xếp hạng', 'trophy'], ['exam', 'Thi thử', 'clock'], ['me', 'Tiến độ của tôi', 'chart'], ['feedback', 'Góp ý', 'chat']];
-const NAV_T = [['class', 'Tổng hợp lớp', 'chart'], ['students', 'Học viên', 'users'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['path', 'Lộ trình', 'path'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
+const NAV_T = [['class', 'Tổng hợp lớp', 'chart'], ['students', 'Học viên', 'users'], ['codes', 'Mã học viên', 'lock'], ['reports', 'Báo lỗi', 'flag'], ['feedbacks', 'Góp ý', 'chat'], ['content', 'Cập nhật nội dung', 'upload'], ['sep', 'Xem như học viên'], ['home', 'Trang chủ', 'home'], ['review', 'Ôn tập', 'cards'], ['path', 'Lộ trình', 'path'], ['grammar', 'Ngữ pháp', 'book'], ['exam', 'Thi thử', 'clock'], ['rank', 'Bảng xếp hạng', 'trophy']];
 window.go = p => { if (p === 'login') return login(); stopSpeed(); stopRec();  S.page = p; S.quiz = null; render(); window.scrollTo(0, 0); };
 function render() {
   shell(true);
@@ -816,12 +840,12 @@ function render() {
   $('#bnav').innerHTML = (isGuest && !me ? [...items, ['login', 'Đăng nhập', 'user']] : items).filter(x => x[0] !== 'sep').map(([k, l, i]) => `<button class="${navOn === k ? 'on' : ''}" onclick="go('${k}')">${ic(i)}<span>${l.replace('Tiến độ của tôi', 'Tiến độ').replace('Bảng xếp hạng', 'Xếp hạng').replace('Luyện theo bài', 'Luyện bài').replace('Cập nhật nội dung', 'Nội dung')}</span></button>`).join('');
   $('#mascot').innerHTML = HILLS + `<div class="tip"><b>Mẹo hôm nay</b>${TIPS[new Date().getDate() % TIPS.length]}</div>`;
   const name = isTeacher ? 'cô Linh' : profile.name;
-  const sub = isTeacher ? 'Quản lý học viên và nội dung ôn luyện' : isGuest ? (profile.pending ? 'Tài khoản đang chờ cô duyệt. Trong lúc chờ, bạn ôn từ vựng miễn phí nhé.' : 'Ôn từ vựng HSK miễn phí. Học viên của lớp đăng nhập để lưu tiến độ và làm bài luyện.') : `Phần Ôn tập lấy từ vựng Bài 1 – ${myLesson()} · chuỗi ${currentStreak(stats)} ngày học`;
+  const sub = isTeacher ? 'Quản lý học viên và nội dung ôn luyện' : isGuest ? 'Bạn đang dùng thử với tư cách khách. Đăng nhập miễn phí để lưu tiến độ.' : `${isStudent ? '<span class="pill ok">Học viên lớp Xiaoliing</span>' : '<span class="pill">Tài khoản miễn phí</span>'} Ôn tập lấy từ vựng Bài 1 – ${myLesson()}`;
   $('#hero').innerHTML = HERO + `<div class="hero-text"><h1>${leaf} Chào ${esc(name)}!</h1><p>${sub}</p></div>
     <div class="hero-box">${new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })}
     ${!isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><select class="inline sm" onchange="setMine('level',this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${myLevel() === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đã học đến</span><select class="inline sm" onchange="setMine('lesson',this.value)">${lsOpts(maxLs(myLevel()), myLesson())}</select></div>` : ''}
     ${isTeacher ? `<div class="row" style="gap:6px;flex-wrap:wrap"><span>Xem như học viên</span><select class="inline sm" onchange="setTeacherLevel(this.value)">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${S.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select><span>đến</span><select class="inline sm" onchange="S.lesson=+this.value;render()">${lsOpts(maxLs(S.level), S.lesson)}</select></div>` : ''}</div>`;
-  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam', 'sound', 'path', 'class'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
+  if (!content && !['students', 'content', 'reports', 'feedbacks', 'feedback', 'intro', 'exam', 'sound', 'path', 'class', 'codes', 'grammar', 'rank', 'me', 'quick'].includes(S.page)) { view().innerHTML = `<div class="card"><h3>Chưa có nội dung</h3><p class="muted">${isTeacher ? 'Cô vào mục "Cập nhật nội dung" để tải file Excel lên.' : 'Cô giáo chưa tải nội dung cho cấp độ này. Bạn quay lại sau nhé.'}</p></div>`; return; }
   rv();
 }
 window.render = render; window.S = S;
@@ -843,50 +867,59 @@ window.setMine = async (field, val) => {
 function rv() { const y = window.scrollY; view().innerHTML = S.quiz ? vQuiz() : (VIEWS[S.page] || VIEWS.home)(); window.scrollTo(0, y); afterRender(); }
 window.rv = rv;
 
+const pageHero = (kicker, title, sub, mk, extra = '') => `<section class="page-hero"><div class="grow"><div class="path-kicker">${kicker}</div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}${extra}</div>${mascot(mk, 'page-mascot')}</section>`;
+const chips = a => `<div class="hero-chips">${a.filter(Boolean).map(x => `<span>${x}</span>`).join('')}</div>`;
 /* ====== Trang chủ ====== */
 function vHome() {
-  const lv = learnedVocab(), due = dueWords(lv, srs, Date.now(), 0).length, fresh = lv.filter(v => !srs[v.k]).length;
-  const known = lv.filter(v => (srs[v.k]?.b || 0) >= 2).length;
-  const w = lv.length ? lv[new Date().getDate() % lv.length] : null;
-  return `${quickCard()}${installCard()}${admBlock()}
-  <div class="grid g3">
-    <section class="card"><div class="card-h">${leaf}<h3>Hôm nay</h3></div>
-      <div class="grid g2" style="gap:10px">
-        <div class="tile"><small>Từ cần ôn</small><div class="big">${due}</div></div>
-        <div class="tile"><small>Từ mới chưa học</small><div class="big">${fresh}</div></div>
-        <div class="tile"><small>Từ đã thuộc</small><div class="big">${known}/${lv.length}</div></div>
-        <div class="tile"><small>Chuỗi ngày học</small><div class="big">${currentStreak(stats)}</div></div>
-      </div>
-      <div style="margin-top:12px">${isTeacher ? '' : todayBar()}</div>
-      <button class="btn" style="margin-top:14px;width:100%;justify-content:center" onclick="S.mode='flash';go('review')">${ic('cards')}Ôn flashcard</button>
-    </section>
+  const lv = learnedVocab(), due = dueWords(lv, srs, Date.now(), 0).length, known = lv.filter(v => (srs[v.k]?.b || 0) >= 2).length;
+  const w = lv.length ? lv[new Date().getDate() % lv.length] : null, lvl = myLevel(), nb = lessonsList().filter(l => l !== EXT && bloomed(lvl, l)).length;
+  const ph = stats.ph || {}, phTxt = phDone() ? 'Đã hoàn thành' : ph.tone !== undefined ? `Thanh điệu ${ph.tone}%` : 'Bắt đầu từ thanh điệu';
+  const tile = (icon, title, sub, on, lock) => `<button class="hub-tile ${lock ? 'lock' : ''}" onclick="${on}">${ic(lock ? 'lock' : icon)}<b>${title}</b><small>${sub}</small></button>`;
+  return `${pageHero(`${esc(lvl)} · đã học đến Bài ${myLesson()}`, isTeacher ? 'Xem web như học viên' : `Chào ${esc(profile.name)}, hôm nay ôn gì nào?`, '', 'chao',
+      isTeacher ? '' : chips([`Chuỗi ${currentStreak(stats)} ngày`, `Hôm nay ${Math.min(10, Math.floor(todaySec() / 60))}/10 phút`, due ? `${due} từ đến hạn` : 'Không có từ đến hạn']))}
+    <div class="hub">
+      ${tile('cards', 'Ôn từ vựng', due ? `${due} thẻ đến hạn` : `Đã thuộc ${known}/${lv.length} từ`, "S.mode='flash';go('review')")}
+      ${lvl === 'HSK1' ? tile('speak', 'Phòng luyện âm', phTxt, "go('sound')") : tile('book', 'Ngữ pháp', isStudent ? `${(content?.grammar || []).length} điểm ngữ pháp` : 'Dành cho học viên', "go('grammar')", !isStudent)}
+      ${tile('path', 'Lộ trình', `${nb}/${maxLs(lvl)} chuông đã nở`, "go('path')")}
+      ${tile('clock', 'Ôn nhanh 5 phút', isStudent ? `${due ? due + ' từ + ' : ''}5 câu ngữ pháp` : 'Dành cho học viên', isStudent ? 'startQuick()' : "go('quick')", !isStudent)}
+    </div>
+    ${installCard()}${isStudent && !isTeacher ? '' : admStrip()}
+    <div class="grid g2" style="margin-top:16px">
     ${w ? `<section class="card wod"><div class="card-h">${leaf}<h3>Từ của ngày</h3></div>
       <div class="hz">${esc(w.h)}</div><div style="color:var(--wood);font-weight:700;font-size:18px">${esc(w.p)}</div><div>${esc(w.m)}</div>
-      <div class="muted" style="margin-top:6px;white-space:pre-line">${esc(w.ex)}</div>
+      ${w.ex ? `<div class="muted" style="margin-top:6px;white-space:pre-line">${esc(w.ex)}</div>` : ''}
       <div style="margin-top:12px;display:flex;gap:8px;justify-content:center"><button class="icon-btn" onclick="speak('${esc(w.h)}')">${ic('speak')}</button><button class="icon-btn" onclick="strokes('${esc(w.h)}')">${ic('brush')}</button></div></section>` : ''}
-    <section class="card"><div class="card-h">${leaf}<h3>Xếp hạng tháng</h3><a onclick="go('rank')">Xem tất cả</a></div>${rankList(5)}</section>
-    <section class="card span3"><div class="card-h">${leaf}<h3>Lộ trình ${esc(myLevel())}</h3><a onclick="go('path')">Xem lộ trình</a></div>
-      <div class="row" style="gap:10px;flex-wrap:wrap">${sprig(myLevel())}<span class="muted">${lessonsList().filter(l => l !== EXT && bloomed(myLevel(), l)).length}/${maxLs(myLevel())} chuông đã nở</span></div></section>
-  </div>`;
+    <section class="card"><div class="card-h">${leaf}<h3>Xếp hạng tháng ${month().slice(5)}</h3><a onclick="go('rank')">Xem tất cả</a></div>${rankList(5)}</section>
+    </div>`;
+}
+function admStrip() {
+  const st = site && (site.classes?.length || Object.keys(site.info || {}).length) ? site : DEFAULT_SITE, info = st.info || {}, zalo = info['Zalo'] || info['Số điện thoại'];
+  const c = (st.classes || []).find(c => !/đủ|đóng/i.test(c['Trạng thái'] || '')); if (!c) return '';
+  return `<section class="card adm-strip"><div class="grow"><b>${esc(c['Tên lớp'])}</b>${c['Khai giảng'] ? ` · khai giảng ${esc(c['Khai giảng'])}` : ''}${c['Sĩ số'] ? ` · ${esc(c['Sĩ số'])}` : ''}<div class="muted">Lớp tiếng Trung online cùng ${esc(info['Tên hiển thị'] || 'cô giáo Xiaoliing')}</div></div>
+    ${zalo ? `<a class="btn zalo sm" href="${esc(zaloLink(zalo))}" target="_blank" rel="noopener">${ic('chat')}Nhắn Zalo</a>` : ''}</section>`;
 }
 function lessonsList() { const set = new Set((content?.vocab || []).map(v => v.ls).concat((content?.examples || []).map(e => e.ls))); return [...set].sort((a, b) => a - b); }
-function rankList(limit) {
-  const arr = [...board]; if (!isTeacher && !arr.find(b => b.id === me.uid)) arr.push({ id: me.uid, name: profile.name, pts: monthPts() });
-  arr.forEach(b => { if (b.id === me?.uid && !isTeacher) b.pts = monthPts(); });
-  const list = arr.sort((a, b) => b.pts - a.pts).slice(0, limit || 99);
-  if (!list.length) return '<p class="muted">Chưa có ai ghi điểm tháng này.</p>';
-  return list.map((r, i) => `<div class="list-item ${r.id === me.uid ? 'me-row' : ''}"><div class="rank-n ${i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</div><div class="avatar">${esc(initials(r.name))}</div><div class="grow"><b>${esc(r.name)}${r.id === me.uid ? ' (bạn)' : ''}</b></div><b style="color:var(--olive-d)">${r.pts} điểm</b></div>`).join('');
+function rankList(lim) {
+  const arr = board.map(b => ({ ...b })), mine = me && !isTeacher && !isGuest;
+  if (mine) { const m = arr.find(b => b.id === me.uid); if (m) m.pts = Math.max(m.pts, monthPts()); else if (monthPts() > 0) arr.push({ id: me.uid, name: profile.name, pts: monthPts(), out: arr.length >= 20 }); }
+  const list = arr.sort((a, b) => b.pts - a.pts), shown = list.slice(0, lim || 20), meRow = mine && !shown.find(r => r.id === me.uid) ? list.find(r => r.id === me.uid) : null;
+  if (!list.length) return '<p class="muted">Chưa có ai ghi điểm tháng này. Bạn là người đầu tiên nhé!</p>';
+  const row = (r, i) => `<div class="list-item ${r.id === me?.uid ? 'me-row' : ''}"><div class="rank-n ${i < 3 ? 'r' + (i + 1) : ''}">${r.out ? '–' : i + 1}</div><div class="avatar">${esc(initials(r.name))}</div><div class="grow"><b>${esc(r.name)}${r.id === me?.uid ? ' (bạn)' : ''}</b></div><b style="color:var(--olive-d)">${r.pts} điểm</b></div>`;
+  return shown.map(row).join('') + (meRow ? `<div class="muted" style="margin:6px 0 2px">Vị trí của bạn</div>${row(meRow, list.indexOf(meRow))}` : '');
 }
 function vRank() {
-  return `<section class="card"><div class="card-h">${leaf}<h3>Bảng xếp hạng ${esc(myLevel())} – tháng ${month().slice(5)}</h3></div>${rankList()}</section>
-    <p class="muted" style="margin-top:12px">Chuỗi ngày học: mỗi ngày học đủ 10 phút (chỉ tính lúc đang thao tác) được 1 ngày; mỗi tuần được lỡ 1 ngày mà không mất chuỗi. Cách tính điểm: mỗi thẻ flashcard đã ôn +1, mỗi câu đúng khi luyện tập +2, mỗi cặp ghép thẻ hoàn thành +5. Bảng xếp hạng làm mới vào ngày 1 hằng tháng.</p>`;
+  return `${pageHero(`Tháng ${month().slice(5)}/${month().slice(0, 4)} · toàn hệ thống`, 'Bảng xếp hạng', '20 bạn chăm nhất tháng này. Ôn mỗi ngày để leo hạng nhé!', 'chuong')}
+    <section class="card">${rankList()}</section>
+    <p class="muted" style="margin-top:12px">Cách tính điểm: mỗi thẻ flashcard đã ôn +1, mỗi câu đúng khi luyện tập +2, mỗi lượt ghép thẻ hoàn thành +5. Bảng làm mới vào ngày 1 hằng tháng. Chuỗi ngày học: mỗi ngày học đủ 10 phút được 1 ngày, mỗi tuần được lỡ 1 ngày.</p>`;
 }
 
 /* ====== Ôn tập ====== */
 window.setMode = m => { stopSpeed(); S.mode = m; S.pg = null; S.sp = null; S.queue = []; rv(); };
 function vReview() {
-  const tabs = [['flash', 'Flashcard'], ['pair', 'Ghép thẻ'], ['speed', '60 giây'], ['write', 'Viết chữ']];
-  return `<p class="muted" style="margin:0 0 10px">Đang ôn từ vựng <b>${esc(myLevel())} Bài 1 – ${myLesson()}</b>. Đổi bài đã học ở ô phía trên.</p><div class="mode-tabs">${tabs.map(([k, l]) => `<button class="${S.mode === k ? 'on' : ''}" onclick="setMode('${k}')">${l}</button>`).join('')}</div>`
+  const tabs = [['flash', 'Flashcard', 'cards'], ['pair', 'Ghép thẻ', 'task'], ['speed', '60 giây', 'clock'], ['write', 'Viết chữ', 'brush']];
+  const due = dueWords(learnedVocab(), srs, Date.now(), 0).length;
+  return pageHero(`Ôn từ vựng · ${esc(myLevel())} · Bài 1–${myLesson()}`, due ? `${due} thẻ đang chờ bạn` : 'Hôm nay bạn đã ôn hết thẻ đến hạn', 'Ôn đúng lúc sắp quên là nhớ lâu nhất. Đổi bài đã học ở ô phía trên.', 'chao')
+    + `<div class="mode-grid">${tabs.map(([k, l, i]) => `<button class="${S.mode === k ? 'on' : ''}" onclick="setMode('${k}')">${ic(i)}<span>${l}</span></button>`).join('')}</div>`
     + ({ flash: vFlash, pair: vPair, speed: vSpeed, write: vWrite }[S.mode] || vFlash)();
 }
 function vFlash() {
@@ -970,9 +1003,11 @@ function vPractice() {
     <div class="lesson-grid">${lessonsList().map(l => { const best = (stats.best || {})[l]; return `<button class="lesson-btn" onclick="startLesson(${l})">${lessonLabel(l)}${best !== undefined ? `<small>Cao nhất ${best}%</small>` : ''}</button>`; }).join('')}</div></section>`;
 }
 function vGrammar() {
+  if (!isStudent) return pageHero(`Ngữ pháp · ${esc(myLevel())}`, 'Ngữ pháp theo từng bài', 'Giải thích ngắn gọn, ví dụ có pinyin và bài luyện cho từng điểm ngữ pháp.', 'chao') + lockCard('Mục Ngữ pháp và bài luyện ngữ pháp');
+  if (!content) return `<div class="card"><p class="muted">Cô giáo chưa tải nội dung cho cấp độ này.</p></div>`;
   const gs = content.grammar || [];
   const byLs = {}; gs.forEach(g => (byLs[g.ls] = byLs[g.ls] || []).push(g));
-  return `<section class="card"><div class="card-h">${leaf}<h3>Ngữ pháp HSK</h3><button class="btn sm" onclick="startGrammar(${esc(JSON.stringify(gs.map(g => g.id)))})">Luyện trộn tất cả</button></div>
+  return pageHero(`Ngữ pháp · ${esc(myLevel())}`, `${gs.length} điểm ngữ pháp`, 'Đọc giải thích, nghe ví dụ rồi bấm Luyện tập. Luyện trộn để ôn nhiều điểm một lúc.', 'chao', `<button class="btn ghost" onclick="startGrammar(${esc(JSON.stringify(gs.map(g => g.id)))})">Luyện trộn tất cả ${ic('arrow')}</button>`) + `<section class="card">
     ${Object.keys(byLs).sort((a, b) => a - b).map(ls => `<h3 class="ls-h">${lessonLabel(+ls)}</h3><div class="grid g3" style="gap:12px">${byLs[ls].map(g => {
       const n = content.examples.filter(e => e.gid === g.id).length;
       return `<div class="gcard"><b>${esc(g.name)}</b><div class="hz st">${esc(g.st)}</div><div class="muted">${esc(g.expl)}</div>
@@ -1085,11 +1120,13 @@ function admBlock() {
 }
 function vIntro() {
   return `${admBlock()}${installCard()}<section class="card"><div class="card-h">${leaf}<h3>Ôn từ vựng miễn phí</h3></div>
-      <p class="muted">Flashcard, ghép thẻ, thử thách 60 giây và luyện viết chữ cho HSK1–HSK3. ${profile.pending ? 'Tài khoản của bạn đang chờ cô duyệt.' : 'Học viên của lớp đăng nhập để lưu tiến độ và làm bài luyện ngữ pháp.'}</p>
-      <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" onclick="go('review')">${ic('cards')}Bắt đầu ôn từ vựng</button><button class="btn ghost" onclick="go('sound')">${ic('speak')}Phòng luyện âm</button>${!me ? `<button class="btn ghost" onclick="login()">${ic('user')}Đăng nhập học viên</button>` : ''}</div></section>`;
+      <p class="muted">Flashcard, ghép thẻ, thử thách 60 giây và luyện viết chữ cho HSK1–HSK3. Đăng nhập miễn phí để lưu tiến độ, luyện theo bài và lên bảng xếp hạng.</p>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><button class="btn" onclick="go('review')">${ic('cards')}Bắt đầu ôn từ vựng</button><button class="btn ghost" onclick="go('sound')">${ic('speak')}Phòng luyện âm</button>${!me ? `<button class="btn ghost" onclick="login()">${ic('user')}Đăng nhập miễn phí</button>` : ''}</div></section>`;
 }
 function vExam() {
-  return `<section class="card" style="text-align:center;padding:36px 20px"><div class="card-h" style="justify-content:center">${leaf}<h3>Thi thử HSK</h3></div>
+  const hero = pageHero('Thi thử · chuẩn HSK 3.0', 'Thi thử HSK', 'Đề thi thử HSK1–HSK3 có bấm giờ và chấm điểm tự động.', 'dongvien');
+  if (!isStudent) return hero + lockCard('Thi thử HSK');
+  return hero + `<section class="card" style="text-align:center;padding:30px 20px">
     <p style="font-size:18px;margin:6px 0">Nội dung sẽ được cập nhật sau.</p>
     <p class="muted">Cô đang chuẩn bị đề thi thử theo chuẩn HSK 3.0 cho HSK1–HSK3. Trong lúc chờ, bạn ôn từ vựng và luyện ngữ pháp nhé.</p>
     <div class="row" style="gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px"><button class="btn" onclick="go('review')">${ic('cards')}Ôn tập</button><button class="btn ghost" onclick="go('grammar')">${ic('book')}Ngữ pháp</button></div></section>`;
@@ -1155,9 +1192,8 @@ const QS = [['improve', 'Bạn muốn web cải tiến phần nào?', 'Ví dụ:
 window.pick = (el, multi) => { if (!multi) el.parentElement.querySelectorAll('.choice').forEach(x => x.classList.remove('on')); el.classList.toggle('on'); };
 const choices = (id, arr, multi) => `<div class="choices" id="${id}">${arr.map((t, i) => `<button type="button" class="choice" data-i="${i}" onclick="pick(this,${multi ? 1 : 0})">${t}</button>`).join('')}</div>`;
 function vFeedback() {
-  if (S.fbSent) return `<section class="card score-card"><div class="big" style="font-size:30px">Cảm ơn bạn!</div><p class="muted">Cô đã nhận được góp ý. Những ý kiến này giúp web tốt hơn cho cả lớp.</p><button class="btn ghost" onclick="S.fbSent=false;rv()">Gửi thêm góp ý</button></section>`;
-  return `<section class="card"><div class="card-h">${leaf}<h3>Góp ý cho web</h3></div>
-    <p class="muted" style="margin-top:-6px">Mất khoảng 2 phút. Bạn trả lời câu nào cũng được, không bắt buộc trả lời hết.</p>
+  if (S.fbSent) return `<section class="card score-card">${mascot('vui', 'result-mascot')}<div class="big" style="font-size:30px">Cảm ơn bạn!</div><p class="muted">Cô đã nhận được góp ý. Những ý kiến này giúp web tốt hơn cho cả lớp.</p><button class="btn ghost" onclick="S.fbSent=false;rv()">Gửi thêm góp ý</button></section>`;
+  return pageHero('Góp ý', 'Bạn thấy web thế nào?', 'Mất khoảng 2 phút. Trả lời câu nào cũng được, không bắt buộc trả lời hết.', 'chao') + `<section class="card">
     <div class="form fb-form">
       <div><b>1. Nhìn chung, bạn thấy web này thế nào?</b>${choices('f_rate', RATES)}</div>
       <div><b>2. Web có dễ dùng không?</b>${choices('f_ease', EASE)}</div>
@@ -1216,7 +1252,7 @@ window.playStrokes = () => { const w = window._sw || []; let i = 0; const next =
 function vMe() {
   const lv = learnedVocab(); const byLs = {}; lv.forEach(v => { (byLs[v.ls] = byLs[v.ls] || { n: 0, k: 0 }).n++; if ((srs[v.k]?.b || 0) >= 2) byLs[v.ls].k++; });
   const hard = lv.filter(v => (srs[v.k]?.w || 0) > 0).sort((a, b) => srs[b.k].w - srs[a.k].w).slice(0, 10);
-  return `<div class="grid g3">
+  return pageHero(`Tiến độ · ${esc(myLevel())}`, `Bạn đã thuộc ${lv.filter(v => (srs[v.k]?.b || 0) >= 2).length}/${lv.length} từ`, 'Từ được đánh dấu "thuộc" khi bạn nhớ đúng ít nhất 2 lần liên tiếp trong flashcard.', 'vui') + `<div class="grid g3">
     <div class="tile"><small>Điểm tháng này</small><div class="big">${monthPts()}</div></div>
     <div class="tile"><small>Chuỗi ngày học</small><div class="big">${currentStreak(stats)}</div>${todayBar()}</div>
     <div class="tile"><small>Từ đã thuộc</small><div class="big">${lv.filter(v => (srs[v.k]?.b || 0) >= 2).length}/${lv.length}</div></div>
@@ -1229,31 +1265,44 @@ function vMe() {
 
 /* ====== Giáo viên: học viên ====== */
 let students = null;
-async function loadStudents() {
+async function loadStudents(quiet) {
   const s = await getDocs(collection(db, 'users'));
-  students = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => (u.email || '').toLowerCase() !== TEACHER_EMAIL.toLowerCase());
+  students = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.id !== me.uid);
+  if (!codes) await loadCodes();
   const b = await getDocs(collection(db, 'board')); const bm = {}; b.docs.forEach(d => bm[d.id] = d.data());
-  students.forEach(u => u.pts = bm[u.id]?.month === month() ? bm[u.id].pts : 0);
-  students.sort((a, b) => (a.approved - b.approved) || String(a.name).localeCompare(String(b.name)));
-  rv();
+  const cm = codeMap();
+  students.forEach(u => { u.pts = bm[u.id]?.[PK()] || 0; u.stu = isStu(u, cm); });
+  students.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  if (!quiet) rv();
 }
 function vStudents() {
-  if (!students) { loadStudents().catch(e => toast('Lỗi tải học viên: ' + e.code)); return '<div class="card"><p class="muted">Đang tải danh sách học viên…</p></div>'; }
-  const waiting = students.filter(u => !u.approved).length;
-  return `<section class="card"><div class="card-h">${leaf}<h3>Học viên (${students.length})</h3>${waiting ? `<span class="pill warn">${waiting} người chờ duyệt</span>` : ''}<button class="btn ghost sm" onclick="reloadStudents()">Tải lại</button></div>
-    <p class="muted" style="margin-top:-6px">Học viên đăng nhập lần đầu sẽ hiện ở đây với trạng thái "Chờ duyệt". Cô chỉ cần duyệt (và sửa tên nếu cần) rồi bấm Lưu. Cấp độ và bài đã học do học viên tự chọn, cô vẫn sửa được khi cần.</p>
-    <div class="table-wrap"><table><tr><th>Học viên</th><th>Trạng thái</th><th>Cấp độ</th><th>Đã học đến</th><th>Điểm tháng</th><th></th></tr>
-    ${students.map(u => `<tr><td><input class="cell-in" id="n_${u.id}" value="${esc(u.name)}"><div class="muted" style="font-size:12px">${esc(u.email)}</div></td>
-      <td><select class="inline sm" id="a_${u.id}"><option value="1" ${u.approved ? 'selected' : ''}>Đã duyệt</option><option value="0" ${u.approved ? '' : 'selected'}>Chờ duyệt / Khóa</option></select></td>
+  if (!students) { loadStudents().catch(e => toast('Lỗi tải học viên: ' + e.code)); return '<div class="card"><p class="muted">Đang tải danh sách…</p></div>'; }
+  const cm = codeMap(), stu = students.filter(u => u.stu), q = (S.uq || '').toLowerCase();
+  const free = students.filter(u => !u.stu && (!q || (u.name + ' ' + u.email).toLowerCase().includes(q)));
+  const role = u => u.approved ? '<span class="pill ok">Cô cấp quyền</span>' : `<span class="pill ok">Mã ${esc(u.code)}</span><div class="muted" style="font-size:12px">đến ${fmtDate(expMs(cm[u.code]))}</div>`;
+  return `<section class="card"><div class="card-h">${leaf}<h3>Học viên của lớp (${stu.length})</h3><button class="btn ghost sm" onclick="reloadStudents()">Tải lại</button></div>
+    <p class="muted" style="margin-top:-6px">Người nhập đúng mã học viên còn hạn, hoặc được cô cấp quyền, sẽ hiện ở đây. Cấp độ và bài đã học do học viên tự chọn, cô vẫn sửa được.</p>
+    <div class="table-wrap"><table><tr><th>Học viên</th><th>Quyền</th><th>Cấp độ</th><th>Đã học đến</th><th>Điểm tháng</th><th></th></tr>
+    ${stu.map(u => `<tr><td><input class="cell-in" id="n_${u.id}" value="${esc(u.name)}"><div class="muted" style="font-size:12px">${esc(u.email)}</div></td><td>${role(u)}</td>
       <td><select class="inline sm" id="l_${u.id}">${['HSK1', 'HSK2', 'HSK3'].map(l => `<option ${u.level === l ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
       <td><select class="inline sm" id="s_${u.id}">${lsOpts(maxLs(u.level), u.lesson)}</select></td>
-      <td><b>${u.pts}</b></td><td style="white-space:nowrap"><button class="btn sm" onclick="saveStudent('${u.id}')">Lưu</button> <button class="btn ghost sm" onclick="studentDetail('${u.id}')">Chi tiết</button></td></tr>`).join('')}</table></div></section>
+      <td><b>${u.pts}</b></td><td style="white-space:nowrap"><button class="btn sm" onclick="saveStudent('${u.id}')">Lưu</button> <button class="btn ghost sm" onclick="studentDetail('${u.id}')">Chi tiết</button> <button class="btn ghost sm" onclick="setStu('${u.id}',false)">Bỏ quyền</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Chưa có học viên nào.</td></tr>'}</table></div></section>
+    <section class="card" style="margin-top:16px"><div class="card-h">${leaf}<h3>Người dùng miễn phí (${students.length - stu.length})</h3><input class="cell-in" style="max-width:220px" placeholder="Tìm tên hoặc Gmail" value="${esc(S.uq || '')}" oninput="S.uq=this.value;clearTimeout(window._uqT);window._uqT=setTimeout(rv,300)"></div>
+    <div class="table-wrap"><table><tr><th>Người dùng</th><th>Cấp độ</th><th>Ngày tham gia</th><th>Điểm tháng</th><th></th></tr>
+    ${free.slice(0, 100).map(u => `<tr><td><b>${esc(u.name)}</b><div class="muted" style="font-size:12px">${esc(u.email)}</div></td><td>${esc(u.level || 'HSK1')}</td><td class="muted">${u.created ? fmtDate(u.created) : '–'}</td><td>${u.pts}</td>
+      <td style="white-space:nowrap"><button class="btn ghost sm" onclick="studentDetail('${u.id}')">Chi tiết</button> <button class="btn ghost sm" onclick="setStu('${u.id}',true)">Cấp quyền học viên</button></td></tr>`).join('') || '<tr><td colspan="5" class="muted">Không có ai.</td></tr>'}</table></div>
+    ${free.length > 100 ? `<p class="muted">Đang hiện 100/${free.length} người, gõ tên để tìm.</p>` : ''}</section>
     <div id="detail"></div>`;
 }
-window.reloadStudents = () => { students = null; rv(); };
+window.reloadStudents = () => { students = null; codes = null; rv(); };
 window.saveStudent = async id => {
-  const v = { name: $('#n_' + id).value.trim(), approved: $('#a_' + id).value === '1', level: $('#l_' + id).value, lesson: +$('#s_' + id).value };
+  const v = { name: $('#n_' + id).value.trim(), level: $('#l_' + id).value, lesson: +$('#s_' + id).value };
   try { await updateDoc(doc(db, 'users', id), v); Object.assign(students.find(u => u.id === id), v); toast('Đã lưu ' + v.name); } catch (e) { toast('Chưa lưu được: ' + e.code); }
+};
+window.setStu = async (id, on) => {
+  const u = students.find(x => x.id === id); if (!on && !confirm('Bỏ quyền học viên của ' + u.name + '?')) return;
+  const v = on ? { approved: true } : { approved: false, code: deleteField() };
+  try { await updateDoc(doc(db, 'users', id), v); u.approved = on; if (!on) delete u.code; u.stu = on; rv(); toast(on ? 'Đã cấp quyền học viên' : 'Đã bỏ quyền học viên'); } catch (e) { toast('Lỗi: ' + e.code); }
 };
 window.studentDetail = async id => {
   const u = students.find(x => x.id === id);
@@ -1400,7 +1449,7 @@ function vPath() {
   return `<section class="path-hero"><div class="grow">
       <div class="path-kicker">Lộ trình của bạn · ${esc(lv)}</div>
       <h2>Mỗi bài một chuông hoa,<br><span>cả cấp thành một cành linh lan.</span></h2>
-      <p>Làm bài luyện đạt từ ${PASS}% thì chuông hoa của bài đó nở.${isGuest ? ' Khách chỉ dùng được Phòng luyện âm.' : ''}</p>
+      <p>Làm bài luyện đạt từ ${PASS}% thì chuông hoa của bài đó nở.${isGuest ? ' Khách chỉ dùng được Phòng luyện âm.' : isStudent ? '' : ' Tài khoản miễn phí luyện phần từ vựng; học viên có thêm phần ngữ pháp.'}</p>
       ${!isTeacher && !isGuest ? `<div class="path-today">${ic('clock')}Hôm nay ${Math.min(10, Math.floor(todaySec() / 60))}/10 phút · chuỗi ${currentStreak(stats)} ngày</div>` : ''}
       <div>${cta}</div></div>${mascot(done && done >= ls.filter(l => l !== EXT).length && ls.length ? 'chuong' : 'chao', 'hero-mascot')}</section>
     ${showPh ? `<section class="card ph-card"><div class="ph-ic">${ic('speak')}</div><div class="grow"><small class="muted">Nền tảng trước hành trình</small><h3>Phòng luyện âm</h3>
@@ -1413,7 +1462,7 @@ function vPath() {
       const nv = (content.vocab || []).filter(v => v.ls === l).length, ng = (content.grammar || []).filter(g => g.ls === l).length;
       return `<div class="pcard ${lock ? 'lock' : ''} ${l === nx ? 'cur' : ''}"><div class="row"><span class="pnum">${lessonLabel(l)}</span><span class="grow"></span>${lock ? ic('lock') : bellSvg(open)}</div>
         <div class="muted">${nv} từ${ng ? ' · ' + ng + ' ngữ pháp' : ''}</div>
-        <small>${isGuest ? 'Đăng nhập học viên để luyện' : lock ? 'Mở khi bạn học đến bài này' : open ? `Đã nở · cao nhất ${b}%` : b !== undefined ? `Cao nhất ${b}% · cần ${PASS}%` : 'Chưa làm'}</small>
+        <small>${isGuest ? 'Đăng nhập miễn phí để luyện' : lock ? 'Mở khi bạn học đến bài này' : open ? `Đã nở · cao nhất ${b}%` : b !== undefined ? `Cao nhất ${b}% · cần ${PASS}%` : 'Chưa làm'}</small>
         ${lock ? '' : `<button class="btn ${open ? 'ghost' : ''} sm" onclick="startLesson(${l})">${open ? 'Luyện lại' : 'Luyện bài'}</button>`}</div>`; }).join('')}</div>`
     : `<div class="card" style="margin-top:14px"><p class="muted">Cô giáo chưa tải nội dung cho cấp độ này.</p></div>`}`;
 }
@@ -1435,8 +1484,9 @@ function quickCard() {
 /* ====== Giáo viên: tổng hợp lớp ====== */
 let cls = null;
 async function loadClass() {
-  const s = await getDocs(collection(db, 'users'));
-  const us = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.approved && (u.email || '').toLowerCase() !== TEACHER_EMAIL.toLowerCase());
+  if (!codes) await loadCodes();
+  const s = await getDocs(collection(db, 'users')), cm = codeMap();
+  const us = s.docs.map(d => ({ id: d.id, ...d.data() })).filter(u => u.id !== me.uid && isStu(u, cm));
   await Promise.all(us.map(async u => {
     const [a, b] = await Promise.all([getDoc(doc(db, 'users', u.id, 'data', 'srs')), getDoc(doc(db, 'users', u.id, 'data', 'stats'))]);
     u.srs = a.exists() ? a.data().map || {} : {}; u.st = b.exists() ? b.data() : {};
@@ -1494,7 +1544,65 @@ window.doInstall = async () => { if (!installEvt) return; installEvt.prompt(); t
 window.LS = LS;
 if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(() => { }); } catch (e) { } }
 
-const VIEWS = { class: vClass, intro: vIntro, exam: vExam, sound: vSound, path: vPath, practice: vPath, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
+/* ====== Mã học viên ====== */
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const genCode = () => 'XL-' + Array.from(crypto.getRandomValues(new Uint32Array(6)), x => CODE_CH[x % CODE_CH.length]).join('');
+const normCode = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+const fmtDate = ms => new Date(ms).toLocaleDateString('vi-VN');
+const expMs = c => c?.exp?.toMillis ? c.exp.toMillis() : +c?.exp || 0;
+window.redeem = async () => {
+  const el = $('#code-in'), msg = $('#code-msg'), c = normCode(el?.value);
+  if (!c) { msg.textContent = 'Bạn nhập mã trước nhé.'; return; }
+  if (!me) { msg.textContent = 'Bạn cần đăng nhập trước khi nhập mã.'; return; }
+  try {
+    const s = await getDoc(doc(db, 'codes', c));
+    if (!s.exists()) { msg.textContent = 'Mã không đúng. Bạn kiểm tra lại chữ và số nhé.'; return; }
+    if (expMs(s.data()) <= Date.now()) { msg.textContent = 'Mã này đã hết hạn. Bạn nhắn cô để lấy mã mới.'; return; }
+    await updateDoc(doc(db, 'users', me.uid), { code: c });
+    profile.code = c; profile.codeExp = expMs(s.data()); isStudent = true;
+    await loadContent(); toast('Đã mở khóa tính năng học viên đến ' + fmtDate(profile.codeExp)); render();
+  } catch (e) { msg.textContent = 'Chưa kích hoạt được (' + (e.code || e.message) + ').'; }
+};
+function lockCard(what) {
+  const st = site && (site.info || site.classes) ? site : DEFAULT_SITE, zalo = (st.info || {})['Zalo'] || (st.info || {})['Số điện thoại'];
+  return `<section class="card lock-card">${mascot('chao', 'lock-mascot')}<h3>Dành cho học viên lớp Xiaoliing</h3>
+    <p class="muted">${esc(what || 'Bài luyện ngữ pháp, Ôn nhanh 5 phút, thi thử và nộp bài tập')} dành cho học viên của lớp. Nhập mã cô giáo gửi để mở khóa.</p>
+    ${me ? `<div class="row" style="justify-content:center;gap:8px;flex-wrap:wrap"><input id="code-in" class="code-in" placeholder="Mã học viên, ví dụ XL-7K3P9Q" onkeydown="if(event.key==='Enter')redeem()"><button class="btn" onclick="redeem()">Kích hoạt</button></div><div id="code-msg" class="code-msg"></div>`
+      : `<button class="btn" onclick="login()">${ic('user')}Đăng nhập để nhập mã</button>`}
+    ${zalo ? `<div class="muted" style="margin:14px 0 8px">Chưa phải học viên?</div><a class="btn zalo" href="${esc(zaloLink(zalo))}" target="_blank" rel="noopener">${ic('chat')}Nhắn Zalo đăng ký học</a>` : ''}</section>`;
+}
+let codes = null;
+async function loadCodes() { const s = await getDocs(collection(db, 'codes')); codes = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => expMs(b) - expMs(a)); }
+const codeMap = () => Object.fromEntries((codes || []).map(c => [c.id, c]));
+const isStu = (u, cm) => !!u.approved || (!!u.code && !!cm[u.code] && expMs(cm[u.code]) > Date.now());
+function vCodes() {
+  if (!codes || !students) { Promise.all([codes ? 0 : loadCodes(), students ? 0 : loadStudents(true)]).then(rv).catch(e => toast('Lỗi tải mã: ' + e.code)); return '<div class="card"><p class="muted">Đang tải…</p></div>'; }
+  const d = new Date(); d.setMonth(d.getMonth() + 6);
+  return `<section class="card"><div class="card-h">${leaf}<h3>Mã học viên</h3></div>
+    <p class="muted" style="margin-top:-6px">Cả lớp dùng chung một mã. Học viên nhập mã thì mở khóa tính năng học viên đến ngày hết hạn. Hết hạn hoặc bị thu hồi thì về tài khoản miễn phí, tiến độ vẫn giữ.</p>
+    <div class="form" style="grid-template-columns:1fr auto auto;align-items:end;display:grid;gap:10px">
+      <label>Mã<input id="nc" value="${genCode()}"></label><label>Hết hạn<input id="ne" type="date" value="${dayStr(d)}"></label>
+      <button class="btn" onclick="createCode()">Tạo mã</button></div>
+    <div class="table-wrap" style="margin-top:14px"><table><tr><th>Mã</th><th>Hết hạn</th><th>Đang dùng</th><th></th></tr>
+    ${codes.length ? codes.map(c => { const n = students.filter(u => u.code === c.id).length, live = expMs(c) > Date.now();
+      return `<tr class="${live ? '' : 'dim-row'}"><td><b>${esc(c.id)}</b> <button class="link-btn" onclick="copyText('${esc(c.id)}')">chép</button></td><td>${fmtDate(expMs(c))} ${live ? '' : '<span class="pill bad">Đã hết hạn</span>'}</td><td>${n} người</td>
+        <td style="white-space:nowrap;text-align:right">${live ? `<button class="btn ghost sm" onclick="extendCode('${esc(c.id)}')">Gia hạn</button> <button class="btn ghost sm" onclick="revokeCode('${esc(c.id)}')">Thu hồi</button>` : `<button class="btn ghost sm" onclick="delCode('${esc(c.id)}')">Xóa</button>`}</td></tr>`; }).join('') : '<tr><td colspan="4" class="muted">Chưa có mã nào.</td></tr>'}</table></div></section>`;
+}
+window.copyText = async t => { try { await navigator.clipboard.writeText(t); toast('Đã chép ' + t); } catch (e) { toast(t); } };
+const endOfDay = v => { const d = new Date(v + 'T23:59:59'); return Timestamp.fromDate(d); };
+window.createCode = async () => {
+  const c = normCode($('#nc').value), e = $('#ne').value;
+  if (!/^[A-Z0-9-]{6,30}$/.test(c)) { toast('Mã chỉ gồm chữ không dấu, số và dấu gạch, dài 6–30 ký tự'); return; }
+  if (!e || new Date(e + 'T23:59:59') <= new Date()) { toast('Ngày hết hạn phải sau hôm nay'); return; }
+  if (codes.some(x => x.id === c)) { toast('Mã này đã có'); return; }
+  try { await setDoc(doc(db, 'codes', c), { exp: endOfDay(e), created: Date.now() }); codes = null; rv(); toast('Đã tạo mã ' + c); } catch (err) { toast('Lỗi: ' + err.code); }
+};
+window.extendCode = async id => { const v = prompt('Ngày hết hạn mới (năm-tháng-ngày), ví dụ 2027-07-31'); if (!v) return; if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { toast('Ghi đúng dạng năm-tháng-ngày'); return; } try { await updateDoc(doc(db, 'codes', id), { exp: endOfDay(v) }); codes = null; rv(); } catch (e) { toast('Lỗi: ' + e.code); } };
+window.revokeCode = async id => { if (!confirm('Thu hồi mã ' + id + '? Mọi người dùng mã này sẽ về tài khoản miễn phí.')) return; try { await updateDoc(doc(db, 'codes', id), { exp: Timestamp.fromMillis(Date.now() - 1000) }); codes = null; rv(); } catch (e) { toast('Lỗi: ' + e.code); } };
+window.delCode = async id => { try { await deleteDoc(doc(db, 'codes', id)); codes = null; rv(); } catch (e) { toast('Lỗi: ' + e.code); } };
+
+function vQuickLock() { return pageHero('Ôn nhanh 5 phút', 'Mỗi ngày 5 phút là đủ', 'Từ vựng đến hạn ôn và 5 câu ngữ pháp của bài gần nhất trong một lượt.', 'chao') + lockCard('Ôn nhanh 5 phút'); }
+const VIEWS = { quick: vQuickLock, codes: vCodes, class: vClass, intro: vIntro, exam: vExam, sound: vSound, path: vPath, practice: vPath, feedback: vFeedback, feedbacks: vFeedbacks, reports: vReports, home: vHome, review: vReview, practice: vPractice, grammar: vGrammar, rank: vRank, me: vMe, students: vStudents, content: vContent };
 boot();
 
 </script>
